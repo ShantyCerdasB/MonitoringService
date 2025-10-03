@@ -1,9 +1,9 @@
 output "vnet_id" {
   value       = azurerm_virtual_network.main-vnet.id
-  description = "ID de la VNet creada"
+  description = "Resource ID of the created virtual network"
 }
 
 output "subnet_id" {
   value       = azurerm_subnet.main-subnet.id
-  description = "ID de la Subnet creada"
+  description = "Resource ID of the created subnet"
 }

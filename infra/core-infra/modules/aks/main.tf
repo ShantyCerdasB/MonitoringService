@@ -1,22 +1,20 @@
-###############################################
-# 1) AKS Cluster - fixed default system pool
-###############################################
-resource "azurerm_kubernetes_cluster" "aks-cluster" {
-  # Basic cluster details
-  name                = "${var.name_prefix}-k8s"   # Cluster name
-  location            = var.region                 # Azure region
-  resource_group_name = var.resource_group         # Resource Group
-  dns_prefix          = var.name_prefix            # DNS prefix for AKS API
-  sku_tier            = var.aks_price_tier         # e.g. "Free" or "Paid"
+# Azure Kubernetes Service cluster for container orchestration
+# Provides a managed Kubernetes environment for LiveKit and related services
 
-  # Default system node pool (non-autoscaling)
+resource "azurerm_kubernetes_cluster" "aks-cluster" {
+  name                = "${var.name_prefix}-k8s"
+  location            = var.region
+  resource_group_name = var.resource_group
+  dns_prefix          = var.name_prefix
+  sku_tier            = var.aks_price_tier
+
+  # System node pool for Kubernetes system components
   default_node_pool {
-    name           = "systempool"                  # Node pool name
-    vm_size        = var.vm_sku             # Small SKU for system components
-    node_count     = 1                              # Always 1 node for system workloads
+    name           = "systempool"
+    vm_size        = var.vm_sku
+    node_count     = 1
     vnet_subnet_id = var.vnet_subnet_id
 
-    # Rolling upgrade settings
     upgrade_settings {
       drain_timeout_in_minutes      = 0
       max_surge                     = "10%"
@@ -24,7 +22,6 @@ resource "azurerm_kubernetes_cluster" "aks-cluster" {
     }
   }
 
-  # Ignore internal Azure image cleaner settings
   lifecycle {
     ignore_changes = [
       image_cleaner_enabled,
@@ -32,34 +29,24 @@ resource "azurerm_kubernetes_cluster" "aks-cluster" {
     ]
   }
 
-  # Managed identity for the control plane
   identity {
     type = "SystemAssigned"
   }
 
-  # Networking configuration (Azure CNI)
   network_profile {
     network_plugin = "azure"
   }
 }
 
-#####################################################
-# 2) User node pool for workloads (with autoscaling)
-#####################################################
+# User node pool with autoscaling for application workloads
 resource "azurerm_kubernetes_cluster_node_pool" "livekit-pool" {
-  name                  = "livekit"                               # Pool name
+  name                  = "livekit"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks-cluster.id
-  vm_size               = var.vm_sku                      # VM SKU for LiveKit workloads
-  min_count             = 1                                       # Minimum nodes
-  max_count             = 3                                       # Maximum nodes
-  auto_scaling_enabled = true
+  vm_size               = var.vm_sku
   vnet_subnet_id        = var.vnet_subnet_id
-  mode                  = "User"                                  # User workloads
+  mode                  = "User"
 
-  # Optional: labels to target pods in YAML
   node_labels = {
     workload = "livekit"
   }
-
-
 }

@@ -1,41 +1,47 @@
 variable "resource_group_name" {
+  description = "Resource group name for Service Bus deployment"
   type        = string
-  description = "Name of the resource group"
 }
+
 variable "location" {
+  description = "Azure region for Service Bus deployment"
   type        = string
-  description = "Azure region"
 }
+
 variable "name_prefix" {
+  description = "Prefix for Service Bus namespace naming"
   type        = string
-  description = "Service Bus namespace name"
 }
+
 variable "sku_name" {
+  description = "Service Bus namespace SKU tier"
   type        = string
-  description = "SKU for Service Bus Namespace (e.g., Standard)"
   default     = "Standard"
 }
+
 variable "topic_name" {
+  description = "Name of the Service Bus topic for command messages"
   type        = string
-  description = "Service Bus topic name for commands"
   default     = "commands"
 }
+
 variable "auth_rule_name" {
+  description = "Name of the Service Bus authorization rule"
   type        = string
-  description = "SAS rule name for accessing Service Bus"
   default     = "sb-policy"
 }
 
-
 variable "spa_sp_object_id" {
-  description = "Service principal object ID of the SPA app"
+  description = "Object ID of the Single Page Application service principal"
   type        = string
 }
+
 variable "api_sp_object_id" {
-  description = "Service principal object ID of the API app"
+  description = "Object ID of the API application service principal"
   type        = string
 }
+
 variable "api_scope_value" {
-  description = "UUID of the API OAuth2 scope"
+  description = "UUID of the API OAuth2 permission scope"
   type        = string
 }

@@ -1,7 +1,11 @@
-# Fetch tenant ID for access policies
+# Azure Key Vault for secure storage of application secrets
+# Stores API keys, connection strings, and other sensitive configuration
+
+# Current tenant and client configuration
 data "azuread_client_config" "current" {}
 data "azurerm_client_config" "current" {}
 
+# Key Vault instance with access policy for the current service principal
 resource "azurerm_key_vault" "keyvault" {
   name                       = "${var.name_prefix}-kv"
   location                   = var.location
@@ -11,7 +15,7 @@ resource "azurerm_key_vault" "keyvault" {
   purge_protection_enabled   = false
   soft_delete_retention_days = 7
 
-    access_policy {
+  access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = data.azurerm_client_config.current.object_id
     secret_permissions = [
@@ -25,8 +29,7 @@ resource "azurerm_key_vault" "keyvault" {
   }
 }
 
-
-# Each secret stored in Key Vault
+# Application secrets stored in Key Vault
 resource "azurerm_key_vault_secret" "livekit_api_key" {
   name         = "LIVEKIT-API-KEY"
   value        = var.livekit_api_key

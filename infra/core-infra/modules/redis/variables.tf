@@ -1,15 +1,15 @@
 variable "name_prefix" {
-  description = "Common prefix for all resources"
+  description = "Prefix for Redis cache resource naming"
   type        = string
 }
 
 variable "resource_group" {
-  description = "Name of the Resource Group"
+  description = "Resource group name for Redis cache deployment"
   type        = string
 }
 
 variable "region" {
-  description = "Azure region (e.g. westus2)"
+  description = "Azure region for Redis cache deployment"
   type        = string
 }
 
@@ -45,7 +45,6 @@ variable "sku_name" {
     error_message = "sku_name must be one of Basic, Standard, or Premium."
   }
 
-  # Adicionalmente validar coherencia familia vs sku_name
   validation {
     condition = (
       (var.family == "C" && contains(["Basic", "Standard"], var.sku_name)) ||
@@ -56,6 +55,6 @@ variable "sku_name" {
 }
 
 variable "egress_public_ip" {
-  description = "Static or CIDR egress IP of AKS for firewall access"
+  description = "Public IP address for AKS cluster egress traffic"
   type        = string
 }

@@ -1,31 +1,26 @@
-# The name of the existing Resource Group where Web PubSub will be deployed
 variable "resource_group_name" {
+  description = "Resource group name for Web PubSub deployment"
   type        = string
-  description = "Resource group name"
 }
 
-# Azure region (e.g., "eastus", "westeurope") where the Web PubSub service will be created
 variable "location" {
+  description = "Azure region for Web PubSub service"
   type        = string
-  description = "Azure region"
 }
 
-# Base identifier for the Web PubSub instance (used to construct the resource name)
 variable "name" {
+  description = "Base name for Web PubSub resource"
   type        = string
-  description = "Web PubSub resource name"
 }
 
-# Pricing tier for the Web PubSub service (for example, "Standard_S1")
 variable "sku" {
+  description = "Web PubSub SKU tier (e.g., Standard_S1, Free_F1)"
   type        = string
-  description = "SKU name, e.g., Standard_S1"
   default     = "Standard_S1"
 }
 
-# Number of units to allocate under the chosen SKU for scaling capacity
 variable "unit_count" {
+  description = "Number of units for Web PubSub capacity scaling"
   type        = number
-  description = "Unit count for the SKU"
   default     = 1
 }
