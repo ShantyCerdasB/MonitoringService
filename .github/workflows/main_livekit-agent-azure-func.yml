@@ -1,4 +1,4 @@
-name: Build, Zip & Deploy – livekit-agent-azure-func
+name: Deploy Azure Functions API
 
 on:
   push:
@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
 
 env:
-  FUNC_SRC: apps/api-functions      # folder containing host.json, functions code, node_modules, etc.
-  NODE_VER: '20.x'                  # Node.js version to use
+  FUNC_SRC: apps/api-functions
+  NODE_VER: '20.x'
 
 permissions:
   contents: read
@@ -19,21 +19,23 @@ permissions:
 
 jobs:
   build:
+    name: Build Azure Functions Package
     runs-on: windows-latest
     permissions:
       contents: read
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_VER }}
 
-      - name: Install deps, build & generate Prisma client
+      - name: Install dependencies and build functions
         shell: pwsh
         run: |
           Push-Location ${{ env.FUNC_SRC }}
@@ -41,77 +43,79 @@ jobs:
           npm run build
           npm run prisma:generate
           if (-Not (Test-Path ".\node_modules\.prisma\client")) {
-            Write-Error "❌ Prisma Client was not generated"
+            Write-Error "Prisma Client was not generated"
             Exit 1
           }
           npm run migrate:deploy
           Pop-Location
 
-      - name: Package deployable ZIP
+      - name: Create deployment package
         shell: pwsh
         run: |
           Remove-Item -Force deploy.zip -ErrorAction Ignore
           Compress-Archive -Path ${{ env.FUNC_SRC }}\* -DestinationPath deploy.zip -Force
 
-      - name: Validate ZIP contents
+      - name: Validate package structure
         shell: pwsh
         run: |
           Remove-Item -Recurse -Force zip-temp -ErrorAction Ignore
           Expand-Archive -Path deploy.zip -DestinationPath zip-temp -Force
           if (-Not (Test-Path "zip-temp/host.json")) {
-            Write-Error "❌ host.json is missing in ZIP root"
+            Write-Error "host.json is missing in ZIP root"
             Exit 1
           }
           if (Test-Path "zip-temp/apps/api-functions") {
-            Write-Error "❌ ZIP contains nested apps/api-functions folder"
+            Write-Error "ZIP contains nested apps/api-functions folder"
             Exit 1
           }
           if (-Not (Test-Path "zip-temp/node_modules/.prisma/client")) {
-            Write-Error "❌ node_modules/.prisma/client is missing in ZIP"
+            Write-Error "node_modules/.prisma/client is missing in ZIP"
             Exit 1
           }
-          Write-Host "✅ ZIP structure is valid"
+          Write-Host "ZIP structure is valid"
           Remove-Item -Recurse -Force zip-temp
 
-      - name: Upload deploy.zip artifact
+      - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
           name: function-zip
           path: deploy.zip
 
   deploy:
+    name: Deploy to Azure Functions
     runs-on: windows-latest
     needs: build
     permissions:
       contents: read
       id-token: write
+    
     steps:
-      - name: Download deploy.zip artifact
+      - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
           name: function-zip
           path: .
 
-      - name: Find deploy.zip
+      - name: Locate deployment package
         id: findzip
         shell: pwsh
         run: |
           $zip = Get-ChildItem -Path . -Filter deploy.zip -Recurse |
                  Select-Object -First 1 -ExpandProperty FullName
           if (-Not (Test-Path $zip)) {
-            Write-Error "❌ deploy.zip not found"
+            Write-Error "deploy.zip not found"
             Exit 1
           }
-          Write-Output "::set-output name=path::$zip"
+          Write-Output "path=$zip" >> $env:GITHUB_OUTPUT
 
-      - name: Login to Azure (Service Principal)
+      - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id:       ${{ secrets.AZUREAPPSERVICE_CLIENTID_BB7ED3C2C8D841F3B4502B8A848971AA }}
-          tenant-id:       ${{ secrets.AZUREAPPSERVICE_TENANTID_70FAA7D8B7DB4B13879DAEC8D3FBB8F1 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BB7ED3C2C8D841F3B4502B8A848971AA }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_70FAA7D8B7DB4B13879DAEC8D3FBB8F1 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_CF84BFAFF9D542F894D95F7FA7234F5A }}
 
-      - name: Deploy ZIP to Azure Function
+      - name: Deploy to Azure Functions
         shell: pwsh
         run: |
           az functionapp deployment source config-zip `
