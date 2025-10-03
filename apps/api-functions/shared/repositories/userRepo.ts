@@ -1,4 +1,6 @@
 import prisma from "../services/prismaClienService";
+import { User, UserRole } from "@prisma/client";
+import { ExpectedError } from "../middleware/errorHandler";
 
 /**
  * Repository for user lookups.
@@ -26,5 +28,36 @@ export class UserRepository {
         OR: [{ id: idOrOid }, { azureAdObjectId: idOrOid }],
       },
     });
+  }
+
+  /**
+   * Finds a user by Azure AD object id with validation.
+   *
+   * @param oid - Azure AD object id.
+   * @returns The user record.
+   * @throws {ExpectedError} When user is not found or deleted.
+   */
+  static async findByAzureAdOidWithValidation(oid: string): Promise<User> {
+    const user = await this.findByAzureAdOid(oid);
+    if (!user) {
+      throw new ExpectedError("User not found", 401);
+    }
+    if (user.deletedAt) {
+      throw new ExpectedError("User has been deleted", 401);
+    }
+    return user;
+  }
+
+  /**
+   * Validates that a user has one of the required roles.
+   *
+   * @param user - The user to validate.
+   * @param allowedRoles - Array of roles that are permitted.
+   * @throws {ExpectedError} When user lacks required permissions.
+   */
+  static validateUserRole(user: User, allowedRoles: UserRole[]): void {
+    if (!allowedRoles.includes(user.role)) {
+      throw new ExpectedError("Insufficient permissions", 403);
+    }
   }
 }

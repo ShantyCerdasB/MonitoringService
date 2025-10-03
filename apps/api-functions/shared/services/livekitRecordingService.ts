@@ -9,7 +9,7 @@ import {
   type RoomCompositeOptions,
 } from "livekit-server-sdk";
 import { config } from "../config";
-import { nowCRIso } from "../utils/timezone";
+import { getCostaRicanTimeISO } from "../utils/timezone";
 import { buildBlobHttpsUrl, generateReadSasUrl } from "./blobSigner";
 import { RecordingSessionRepository } from "../repositories/recordingSessionRepo";
 import { blobService } from "./blobStorageService";
@@ -215,7 +215,7 @@ export class LiveKitRecordingService {
       subjectUserId: args.subjectUserId,
       subjectLabel: args.subjectLabel,
       blobPath: objectKey,
-      startedAt: nowCRIso(),
+      startedAt: getCostaRicanTimeISO(),
     });
 
     return { roomName: args.roomName, egressId, blobPath: objectKey };
@@ -392,7 +392,7 @@ public static async stopAndPersist(args: {
     const stoppedAtIso: string | null =
       (s as any).stoppedAt ? String((s as any).stoppedAt) : null;
 
-    const effectiveEndIso = stoppedAtIso ?? nowCRIso();
+    const effectiveEndIso = stoppedAtIso ?? getCostaRicanTimeISO();
 
     const startMs = Date.parse(startedAtIso);
     const endMs = Date.parse(effectiveEndIso);
@@ -489,7 +489,7 @@ public static async stopAllForUser(
       const finalUrl =
         blobUrl || (session.blobPath ? buildBlobHttpsUrl(session.blobPath) : undefined);
 
-      await RecordingSessionRepository.complete(session.id, finalUrl ?? null, nowCRIso());
+      await RecordingSessionRepository.complete(session.id, finalUrl ?? null, getCostaRicanTimeISO());
 
       const sasUrl = session.blobPath
         ? generateReadSasUrl(session.blobPath, Math.max(1, sasMinutes))

@@ -1,84 +1,64 @@
-import { Context, HttpRequest } from "@azure/functions";
-import { z } from "zod";
-import prisma from "../shared/services/prismaClienService";
+/**
+ * @file index.ts
+ * @summary Acknowledge command endpoint handler
+ * @description HTTP POST endpoint for acknowledging camera commands.
+ * Implements role-based authorization for employees.
+ */
+
+import { AzureFunction, Context } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
 import { withBodyValidation } from "../shared/middleware/validate";
-import { ok, unauthorized, badRequest } from "../shared/utils/response";
-import { markCommandsDelivered } from "../shared/services/pendingCommandService";
-import { JwtPayload } from "jsonwebtoken";
+import { withAcknowledgeCommandAuth } from "../shared/middleware/authorization/specific/acknowledgeCommand";
+import { ok } from "../shared/utils/response";
+import { AcknowledgeCommandService } from "../shared/services/acknowledgeCommand";
+import { acknowledgeCommandRequestSchema, AcknowledgeCommandRequest } from "../shared/schemas/acknowledgeCommand/acknowledgeCommandSchemas";
+import { User } from "@prisma/client";
 
 /**
- * Zod schema for AcknowledgeCommand request.
+ * HTTP POST `/api/AcknowledgeCommand`
  *
- * @remarks
- * Body must be `{ ids: string[] }`, where each ID is the UUID of a PendingCommand
- * that the client has processed and now acknowledges.
- */
-const schema = z.object({
-  ids: z.array(z.string().uuid())
-});
-
-/**
- * Azure Function: AcknowledgeCommandFunction
- *
- * HTTP POST /api/AcknowledgeCommand
- *
- * Allows the authenticated Employee to acknowledge receipt and processing
+ * Allows authenticated employees to acknowledge receipt and processing
  * of one or more pending camera commands. Marks each specified PendingCommand
  * record as acknowledged in the database.
  *
- * Workflow:
- * 1. Validate JWT via `withAuth`, populating `ctx.bindings.user`.
- * 2. Extract Azure AD object ID (`oid` or `sub`) from token claims.
- * 3. Load User record; ensure it exists, is not deleted, and has role `Employee`.
- * 4. Validate request body against Zod schema.
- * 5. Call `markCommandsDelivered(ids)` to update `acknowledged = true` and
- *    set `acknowledgedAt = now()` on each record.
- * 6. Return `{ updatedCount: number }` indicating how many rows were updated.
+ * @param ctx - Azure Functions execution context with logging and bindings.
+ * @param req - HTTP request object containing command IDs to acknowledge.
  *
- * @param ctx - Azure Function execution context.
- * @returns 200 OK with `{ updatedCount: number }` if successful.
- * @throws 401 Unauthorized if:
- *   - JWT is missing or invalid
- *   - User not found, deleted, or not an Employee
- * @throws 400 Bad Request if validation or database update fails.
+ * @body AcknowledgeCommandRequest - JSON object with array of command IDs.
+ *
+ * @returns
+ * - **200 OK** → Commands acknowledged successfully.
+ * - **400 Bad Request** → Invalid request data.
+ * - **401 Unauthorized** → User not authenticated.
+ * - **403 Forbidden** → User lacks required permissions.
+ * - **500 Internal Server Error** → Database or system errors.
  */
-export default withErrorHandler(async (ctx: Context) => {
-  const req: HttpRequest = ctx.req!;
+const acknowledgeCommand: AzureFunction = withErrorHandler(
+  async (ctx: Context) => {
+    ctx.log.info(`[AcknowledgeCommand] Processing command acknowledgment request`);
 
-  await withAuth(ctx, async () => {
-    const claims = ctx.bindings.user as JwtPayload;
-    const azureAdId = (claims.oid ?? claims.sub) as string | undefined;
-    if (!azureAdId) {
-      unauthorized(ctx, "Cannot determine user identity");
-      return;
-    }
-
-    // 2) Load user and enforce Employee role
-    const user = await prisma.user.findUnique({
-      where: { azureAdObjectId: azureAdId }
+    await withAuth(ctx, async () => {
+      await withAcknowledgeCommandAuth()(ctx, async (currentUser: User) => {
+        await withBodyValidation(acknowledgeCommandRequestSchema)(ctx, async () => {
+          const { ids } = ctx.bindings.validatedBody as AcknowledgeCommandRequest;
+          
+          ctx.log.info(`[AcknowledgeCommand] Acknowledging ${ids.length} commands for employee: ${currentUser.email}`);
+          
+          // Execute business logic
+          const result = await AcknowledgeCommandService.acknowledgeCommands(
+            { ids },
+            currentUser
+          );
+          
+          ctx.log.info(`[AcknowledgeCommand] Successfully acknowledged ${result.updatedCount} commands`);
+          
+          return ok(ctx, result);
+        });
+      });
     });
-    if (!user || user.deletedAt) {
-      unauthorized(ctx, "User not found or deleted");
-      return;
-    }
-    if (user.role !== "Employee") {
-      unauthorized(ctx, "Only employees may acknowledge commands");
-      return;
-    }
+  },
+  { genericMessage: "Failed to acknowledge commands" }
+);
 
-    // 3) Validate request body
-    await withBodyValidation(schema)(ctx, async () => {
-      const { ids } = ctx.bindings.validatedBody as { ids: string[] };
-
-      try {
-        const updatedCount = await markCommandsDelivered(ids);
-        ok(ctx, { updatedCount });
-      } catch (err: any) {
-        ctx.log.error("AcknowledgeCommand error:", err);
-        badRequest(ctx, `Failed to acknowledge commands: ${err.message}`);
-      }
-    });
-  });
-});
+export default acknowledgeCommand;
