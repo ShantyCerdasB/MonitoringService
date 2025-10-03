@@ -1,77 +1,59 @@
+/**
+ * @file index.ts
+ * @summary Delete snapshot endpoint handler
+ * @description HTTP DELETE endpoint for deleting snapshots with full validation and audit logging.
+ */
+
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { withAuth }         from "../shared/middleware/auth";
+import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { ok, unauthorized, badRequest } from "../shared/utils/response";
-import prisma               from "../shared/services/prismaClienService";
-// import { blobService }    from "../shared/services/blobStorageService"; // optional
+import { withSnapshotDeletionAuth } from "../shared/middleware/authorization/specific/snapshotDeletion";
+import { ok } from "../shared/utils/response";
+import { SnapshotDeletionService } from "../shared/services/snapshotDeletion";
+import { User } from "@prisma/client";
 
 /**
- * HTTP DELETE /api/snapshots/{id}
+ * HTTP DELETE `/api/snapshots/{id}`
  *
- * Deletes a single snapshot report by its ID.
- * Only users with the "Admin" role may call this endpoint.
+ * Deletes a snapshot with full validation, blob cleanup, and audit logging.
+ * Only Admin and SuperAdmin roles can delete snapshots.
  *
- * @remarks
- * 1. Authenticates the caller via JWT (On-Behalf-Of).  
- * 2. Looks up the calling user by Azure AD Object ID.  
- * 3. Verifies the caller’s role is "Admin"; otherwise returns 401.  
- * 4. Validates the `id` route parameter and looks up the snapshot.  
- * 5. (Optional) Deletes the underlying blob from storage.  
- * 6. Deletes the snapshot record from PostgreSQL.  
- * 7. Returns `{ deletedId: string }` on success.
+ * @param ctx - Azure Functions execution context with logging and bindings.
+ * @param req - HTTP request object containing authorization token.
  *
- * @param ctx - The Azure Functions execution context.
- * @param req - The incoming HTTP request.
- * @returns A 200 OK response with `{ deletedId }`, or 401/400 on error.
+ * @pathParam id - UUID of the snapshot to delete.
+ *
+ * @returns
+ * - **200 OK** → Snapshot deleted successfully.
+ * - **400 Bad Request** → Invalid request data or business rule violation.
+ * - **401 Unauthorized** → User not authenticated.
+ * - **403 Forbidden** → User lacks Admin/SuperAdmin permissions.
+ * - **404 Not Found** → Snapshot not found.
+ * - **500 Internal Server Error** → Database or system errors.
  */
 const deleteSnapshotFunction: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
+    ctx.log.info(`[DeleteSnapshotFunction] Processing snapshot deletion request`);
+
     await withAuth(ctx, async () => {
-      // 1) Identify caller
-      const claims = (ctx as any).bindings.user as { oid?: string; sub?: string };
-      const oid    = claims.oid || claims.sub;
-      if (!oid) {
-        return unauthorized(ctx, "Missing OID in token");
-      }
-
-      // 2) Load user record
-      const caller = await prisma.user.findUnique({
-        where: { azureAdObjectId: oid }
+      await withSnapshotDeletionAuth()(ctx, async (currentUser: User) => {
+        const snapshotId = req.params?.id;
+        
+        ctx.log.info(`[DeleteSnapshotFunction] Deleting snapshot ${snapshotId} by ${currentUser.email}`);
+        
+        // Execute business logic
+        const result = await SnapshotDeletionService.deleteSnapshot(
+          { snapshotId },
+          currentUser
+        );
+        
+        ctx.log.info(`[DeleteSnapshotFunction] Snapshot deleted successfully: ${result.snapshotId}`);
+        
+        return ok(ctx, result);
       });
-      if (!caller) {
-        return unauthorized(ctx, "User not found");
-      }
-
-      // 3) Enforce Admin role
-      if (caller.role !== "Admin" && caller.role !== "SuperAdmin") {
-        return unauthorized(ctx, "Admins only");
-      }
-
-      // 4) Validate route parameter
-      const id = ctx.bindingData.id as string;
-      if (!id) {
-        return badRequest(ctx, "Missing snapshot ID");
-      }
-
-      // 5) Lookup snapshot record
-      const snap = await prisma.snapshot.findUnique({ where: { id } });
-      if (!snap) {
-        return badRequest(ctx, "Snapshot not found");
-      }
-
-      // 6) Optionally delete blob
-      // await blobService.deleteSnapshot(snap.imageUrl);
-
-      // 7) Remove DB record
-      await prisma.snapshot.delete({ where: { id } });
-
-      return ok(ctx, { deletedId: id });
     });
   },
-  {
-    genericMessage: "Internal error deleting snapshot",
-    showStackInDev: true
-  }
+  { genericMessage: "Failed to delete snapshot" }
 );
 
 export default deleteSnapshotFunction;

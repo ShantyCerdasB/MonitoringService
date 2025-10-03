@@ -28,6 +28,9 @@ export const RolePermissions = {
    * Includes Admin, Supervisor, and SuperAdmin roles.
    */
   COMMAND_SENDER_OPERATIONS: [UserRole.Admin, UserRole.Supervisor, UserRole.SuperAdmin] as UserRole[],
+  SUPERVISOR_MANAGEMENT_OPERATIONS: [UserRole.Admin, UserRole.Supervisor, UserRole.SuperAdmin] as UserRole[],
+  USER_ROLE_MANAGEMENT_OPERATIONS: [UserRole.Admin, UserRole.Supervisor, UserRole.SuperAdmin] as UserRole[],
+  PSO_OPERATIONS: [UserRole.ContactManager] as UserRole[],
 
   /**
    * Operational access.

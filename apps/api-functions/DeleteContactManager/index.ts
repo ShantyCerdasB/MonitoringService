@@ -1,60 +1,59 @@
+/**
+ * @file index.ts
+ * @summary Delete contact manager endpoint handler
+ * @description HTTP DELETE endpoint for deleting contact managers with full validation and audit logging.
+ */
+
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { withAuth }   from "../shared/middleware/auth";
+import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { ok, forbidden, badRequest } from "../shared/utils/response";
-import { revokeContactManager } from "../shared/services/contactManagerService";
-import prisma from "../shared/services/prismaClienService";
+import { withContactManagerDeletionAuth } from "../shared/middleware/authorization/specific/userManagement";
+import { ok } from "../shared/utils/response";
+import { ContactManagerManagementService } from "../shared/services/contactManagerManagement";
+import { User } from "@prisma/client";
 
 /**
- * DELETE /api/contactManagers/{id}
+ * HTTP DELETE `/api/contactManagers/{id}`
  *
- * Revokes the Contact Manager role by:
- * 1. Validating the caller’s AAD token via `withAuth`.
- * 2. Looking up the caller in the database by their AAD OID.
- * 3. Ensuring they have `role === "Admin"`.
- * 4. Calling `revokeContactManager(id)` to remove the App Role and delete the profile.
+ * Deletes a Contact Manager with full validation, Azure AD integration, and audit logging.
+ * Only Admin and SuperAdmin roles can delete Contact Managers.
  *
- * Path parameters:
- * - `id`: UUID of the ContactManagerProfile to revoke.
+ * @param ctx - Azure Functions execution context with logging and bindings.
+ * @param req - HTTP request object containing authorization token.
  *
- * @param ctx - Azure Functions execution context (contains `ctx.bindings.user` with token claims).
- * @param req - Incoming HTTP request.
- * @returns 200 OK with `{ message: string }`, 403 if not Admin, or 400 on error.
+ * @pathParam id - UUID of the Contact Manager profile to delete.
+ *
+ * @returns
+ * - **200 OK** → Contact Manager deleted successfully.
+ * - **400 Bad Request** → Invalid request data or business rule violation.
+ * - **401 Unauthorized** → User not authenticated.
+ * - **403 Forbidden** → User lacks Admin/SuperAdmin permissions.
+ * - **404 Not Found** → Contact Manager not found.
+ * - **500 Internal Server Error** → Database or system errors.
  */
 const removeHandler: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
+    ctx.log.info(`[DeleteContactManager] Processing contact manager deletion request`);
+
     await withAuth(ctx, async () => {
-      // 1) Extract AAD OID from token claims
-      const claims = (ctx as any).bindings.user as { oid?: string; sub?: string };
-      const oid = claims.oid || claims.sub;
-      if (!oid) {
-        return forbidden(ctx, "Cannot determine caller identity");
-      }
-
-      // 2) Lookup caller in database to get their role
-      const caller = await prisma.user.findUnique({
-        where: { azureAdObjectId: oid }
+      await withContactManagerDeletionAuth()(ctx, async (currentUser: User) => {
+        const profileId = ctx.bindingData.id as string;
+        
+        ctx.log.info(`[DeleteContactManager] Deleting contact manager ${profileId} by ${currentUser.email}`);
+        
+        // Execute business logic
+        const result = await ContactManagerManagementService.deleteContactManager(
+          profileId,
+          currentUser
+        );
+        
+        ctx.log.info(`[DeleteContactManager] Contact manager deleted successfully: ${result.profileId}`);
+        
+        return ok(ctx, result);
       });
-      if (!caller) {
-        return forbidden(ctx, "Caller not found in database");
-      }
-
-      // 3) Only Admins may revoke
-      if (caller.role !== "Admin" && caller.role !== "SuperAdmin") {
-        return forbidden(ctx, "Only Admin may remove Contact Managers");
-      }
-
-      // 4) Perform the revoke
-      const id = ctx.bindingData.id as string;
-      try {
-        await revokeContactManager(id);
-        return ok(ctx, { message: "Contact Manager revoked" });
-      } catch (err: any) {
-        return badRequest(ctx, err.message);
-      }
     });
   },
-  { genericMessage: "Failed to revoke Contact Manager" }
+  { genericMessage: "Failed to delete Contact Manager" }
 );
 
 export default removeHandler;

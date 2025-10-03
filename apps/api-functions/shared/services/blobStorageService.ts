@@ -60,6 +60,25 @@ class BlobService {
   }
 
   /**
+   * Deletes a snapshot blob by its name.
+   *
+   * @param blobName - The name (including path) of the blob to delete.
+   * @returns `true` if the blob existed and was deleted, `false` if it did not exist.
+   * @throws Error if the delete operation fails unexpectedly.
+   */
+  async deleteSnapshot(blobName: string): Promise<boolean> {
+    if (!blobName) return false;
+    
+    try {
+      const blobClient = this.containerClient.getBlockBlobClient(blobName);
+      const res = await blobClient.deleteIfExists();
+      return Boolean(res.succeeded);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Deletes a **recording** blob by its relative path within the recordings container.
    *
    * This method targets the container defined by the `RECORDINGS_CONTAINER_NAME` environment variable,

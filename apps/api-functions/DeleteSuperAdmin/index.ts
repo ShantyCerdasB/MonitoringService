@@ -1,69 +1,59 @@
+/**
+ * @file index.ts
+ * @summary Delete super admin endpoint handler
+ * @description HTTP DELETE endpoint for deleting super admins with full validation and audit logging.
+ */
+
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { ok, forbidden, badRequest } from "../shared/utils/response";
-import { revokeSuperAdmin } from "../shared/services/SuperAdminService";
-import prisma from "../shared/services/prismaClienService";
+import { withSuperAdminDeletionAuth } from "../shared/middleware/authorization/specific/userManagement";
+import { ok } from "../shared/utils/response";
+import { SuperAdminManagementService } from "../shared/services/superAdminManagement";
+import { User } from "@prisma/client";
 
 /**
  * HTTP DELETE `/api/superAdmins/{id}`
  *
- * Revokes the **SuperAdmin** role from a user.
+ * Deletes a Super Admin with full validation, Azure AD integration, and audit logging.
+ * Only SuperAdmin role can delete other SuperAdmins. Cannot delete the last SuperAdmin.
  *
- * Execution flow:
- * 1. Validate the caller’s AAD token using `withAuth`.
- * 2. Retrieve the caller from the database by their AAD OID.
- * 3. Verify that the caller has `role === "SuperAdmin"`.
- * 4. Call `revokeSuperAdmin(id)` to remove the role / downgrade the user.
+ * @param ctx - Azure Functions execution context with logging and bindings.
+ * @param req - HTTP request object containing authorization token.
  *
- * @param ctx - Azure Functions execution context (bindings, loggers, etc.).
- * @param req - Incoming HTTP request object.
- *
- * @pathParam id - UUID of the user (or profile) whose SuperAdmin role will be revoked.
+ * @pathParam id - UUID of the Super Admin user to delete.
  *
  * @returns
- * - **200 OK** → `{ message: string }` when revocation succeeds.
- * - **403 Forbidden** → if the caller is not a SuperAdmin or unauthorized.
- * - **400 Bad Request** → if a service error occurs during the operation.
- *
- * @remarks
- * This handler is wrapped by `withErrorHandler` to catch unhandled errors
- * and return a generic message `"Failed to revoke SuperAdmin"` if needed.
+ * - **200 OK** → Super Admin deleted successfully.
+ * - **400 Bad Request** → Invalid request data or business rule violation.
+ * - **401 Unauthorized** → User not authenticated.
+ * - **403 Forbidden** → User lacks SuperAdmin permissions.
+ * - **404 Not Found** → Super Admin not found.
+ * - **500 Internal Server Error** → Database or system errors.
  */
 const removeHandler: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
+    ctx.log.info(`[DeleteSuperAdmin] Processing super admin deletion request`);
+
     await withAuth(ctx, async () => {
-      // 1) Extract AAD OID from token
-      const claims = (ctx as any).bindings.user as { oid?: string; sub?: string };
-      const oid = claims.oid || claims.sub;
-      if (!oid) {
-        return forbidden(ctx, "Cannot determine caller identity");
-      }
-
-      // 2) Lookup caller in database and confirm role
-      const caller = await prisma.user.findUnique({
-        where: { azureAdObjectId: oid }
+      await withSuperAdminDeletionAuth()(ctx, async (currentUser: User) => {
+        const userId = ctx.bindingData.id as string;
+        
+        ctx.log.info(`[DeleteSuperAdmin] Deleting super admin ${userId} by ${currentUser.email}`);
+        
+        // Execute business logic
+        const result = await SuperAdminManagementService.deleteSuperAdmin(
+          userId,
+          currentUser
+        );
+        
+        ctx.log.info(`[DeleteSuperAdmin] Super admin deleted successfully: ${result.userId}`);
+        
+        return ok(ctx, result);
       });
-      if (!caller) {
-        return forbidden(ctx, "Caller not found in database");
-      }
-
-      // 3) Only SuperAdmins may revoke SuperAdmins
-      if (caller.role !== "SuperAdmin") {
-        return forbidden(ctx, "Only SuperAdmin may remove SuperAdmins");
-      }
-
-      // 4) Revoke target user’s SuperAdmin role
-      const id = ctx.bindingData.id as string;
-      try {
-        await revokeSuperAdmin(id);
-        return ok(ctx, { message: "SuperAdmin revoked" });
-      } catch (err: any) {
-        return badRequest(ctx, err.message);
-      }
     });
   },
-  { genericMessage: "Failed to revoke SuperAdmin" }
+  { genericMessage: "Failed to delete Super Admin" }
 );
 
 export default removeHandler;

@@ -1,56 +1,59 @@
+/**
+ * @file index.ts
+ * @summary Delete recording endpoint handler
+ * @description HTTP DELETE endpoint for deleting recordings with full validation and audit logging.
+ */
+
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { ok, badRequest, forbidden, notFound } from "../shared/utils/response";
-import { LiveKitRecordingService } from "../shared/services/livekitRecordingService";
-import { UserRepository } from "../shared/repositories/userRepo";
+import { withRecordingDeletionAuth } from "../shared/middleware/authorization/specific/recordingDeletion";
+import { ok } from "../shared/utils/response";
+import { RecordingDeletionService } from "../shared/services/recordingDeletion";
+import { User } from "@prisma/client";
 
 /**
- * Azure Function HTTP trigger to delete a recording by id.
+ * HTTP DELETE `/api/recordings/{id}`
  *
- * @route DELETE /api/recordings/{id}
+ * Deletes a recording with full validation, blob cleanup, and audit logging.
+ * Only SuperAdmin role can delete recordings. Any recording state can be deleted.
  *
- * Security:
- * - Caller must be authenticated via `withAuth`.
- * - Only users with role Admin or Supervisor are authorized.
+ * @param ctx - Azure Functions execution context with logging and bindings.
+ * @param req - HTTP request object containing authorization token.
  *
- * Behavior:
- * - Deletes the blob from Azure Blob Storage (when path can be determined).
- * - Deletes the DB row for the session.
- * - Returns a summary indicating blob and DB deletion outcome.
+ * @pathParam id - UUID of the recording session to delete.
+ *
+ * @returns
+ * - **200 OK** → Recording deleted successfully.
+ * - **400 Bad Request** → Invalid request data or business rule violation.
+ * - **401 Unauthorized** → User not authenticated.
+ * - **403 Forbidden** → User lacks SuperAdmin permissions.
+ * - **404 Not Found** → Recording not found.
+ * - **500 Internal Server Error** → Database or system errors.
  */
 const deleteRecordingFunction: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
+    ctx.log.info(`[DeleteRecordingFunction] Processing recording deletion request`);
+
     await withAuth(ctx, async () => {
-      const claims = (ctx as any).bindings.user as { oid?: string; sub?: string };
-      const oid = claims.oid || claims.sub;
-      if (!oid) return forbidden(ctx, "Cannot determine caller identity");
-
-      const caller = await UserRepository.findByAzureAdOid(oid);
-      if (!caller) return forbidden(ctx, "Caller not found in database");
-      if (!["SuperAdmin"].includes((caller as any).role as string)) {
-        return forbidden(ctx, "Insufficient permissions");
-      }
-
-      const id = req.params?.id;
-      if (!id) return badRequest(ctx, "Missing recording id in route");
-
-      try {
-        const result = await LiveKitRecordingService.deleteRecordingById(id);
-        return ok(ctx, {
-          message: "Recording deleted",
-          ...result,
-        });
-      } catch (err: any) {
-        const msg = String(err?.message || "");
-        if (msg.includes("not found")) {
-          return notFound(ctx, "Recording session not found");
-        }
-        throw err;
-      }
+      await withRecordingDeletionAuth()(ctx, async (currentUser: User) => {
+        const sessionId = req.params?.id;
+        
+        ctx.log.info(`[DeleteRecordingFunction] Deleting recording ${sessionId} by ${currentUser.email}`);
+        
+        // Execute business logic
+        const result = await RecordingDeletionService.deleteRecording(
+          { sessionId },
+          currentUser
+        );
+        
+        ctx.log.info(`[DeleteRecordingFunction] Recording deleted successfully: ${result.sessionId}`);
+        
+        return ok(ctx, result);
+      });
     });
   },
-  { genericMessage: "Error deleting recording", showStackInDev: true }
+  { genericMessage: "Failed to delete recording" }
 );
 
 export default deleteRecordingFunction;

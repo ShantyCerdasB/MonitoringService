@@ -1,16 +1,27 @@
 import { Prisma, AuditLog } from "@prisma/client";
 import prisma from "./prismaClienService";
 
-export type AuditAction =
-  | "CREATE"
-  | "UPDATE"
-  | "DELETE"
-  | "ROLE_CHANGE"
-  | "STREAM_START"
-  | "STREAM_STOP";
+export enum AuditAction {
+  CREATE = "CREATE",
+  UPDATE = "UPDATE",
+  DELETE = "DELETE",
+  ROLE_CHANGE = "ROLE_CHANGE",
+  SUPERVISOR_CHANGE = "SUPERVISOR_CHANGE",
+  STREAM_START = "STREAM_START",
+  STREAM_STOP = "STREAM_STOP"
+}
+
+export enum AuditEntity {
+  USER = "USER",
+  COMMAND = "COMMAND",
+  RECORDING = "RECORDING",
+  SNAPSHOT = "SNAPSHOT",
+  CHAT = "CHAT",
+  CONTACT_MANAGER = "CONTACT_MANAGER"
+}
 
 export interface AuditEntry<T = any> {
-  entity: string;
+  entity: AuditEntity;
   entityId: string;
   action: AuditAction;
   changedById: string;

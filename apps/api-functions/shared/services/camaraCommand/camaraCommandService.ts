@@ -7,7 +7,7 @@
 import { User, CommandType } from "@prisma/client";
 import { sendAdminCommand } from "../busService";
 import { sendToGroup } from "../webPubSubService";
-import { CamaraCommandRepository } from "../../repositories/camaraCommand";
+import { CamaraCommandValidationRules } from "../../domain/validationRules/camaraCommand";
 import { CamaraCommandMessages } from "../../constants/camaraCommandMessages";
 import { DeliveryMethod } from "../../constants/camaraCommandTypes";
 import { getCostaRicanTimeISO } from "../../utils/timezone";
@@ -40,7 +40,7 @@ export class CamaraCommandService {
     const { command, employeeEmail } = request;
     
     // Validate target user
-    await CamaraCommandRepository.findAndValidateTargetUser(employeeEmail);
+    await CamaraCommandValidationRules.findAndValidateTargetUser(employeeEmail);
     
     const timestamp = getCostaRicanTimeISO();
     

@@ -1,76 +1,63 @@
+/**
+ * @file index.ts
+ * @summary Create contact manager endpoint handler
+ * @description HTTP POST endpoint for creating contact managers with full validation and audit logging.
+ */
+
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { z } from "zod";
-import { withAuth }   from "../shared/middleware/auth";
+import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
 import { withBodyValidation } from "../shared/middleware/validate";
-import { ok, forbidden, badRequest } from "../shared/utils/response";
-import { addContactManager } from "../shared/services/contactManagerService";
-import prisma from "../shared/services/prismaClienService";
+import { withContactManagerCreationAuth } from "../shared/middleware/authorization/specific/userManagement";
+import { ok } from "../shared/utils/response";
+import { ContactManagerManagementService } from "../shared/services/contactManagerManagement";
+import { CreateContactManagerSchema, CreateContactManagerRequest } from "../shared/schemas/userManagement";
+import { User } from "@prisma/client";
+
 
 /**
- * Request schema for creating a Contact Manager profile.
- */
-const schema = z.object({
-  /** The user's email to promote */
-  email:  z.string().email(),
-  /** Initial status for the new Contact Manager */
-  status: z.enum(["Available","Unavailable","OnBreak","OnAnotherTask"]),
-});
-
-/**
- * POST /api/contactManagers
+ * HTTP POST `/api/contactManagers`
  *
- * Promotes an existing user to ContactManager by:
- * 1. Validating the caller’s AAD token.
- * 2. Looking up the caller in the database to verify `role==="Admin"`.
- * 3. Validating the request body.
- * 4. Calling `addContactManager(email, status)` to assign the AppRole and upsert the profile.
+ * Creates a new Contact Manager with full validation, Azure AD integration, and audit logging.
+ * Only Admin and SuperAdmin roles can create Contact Managers.
  *
- * Body:
- *   `{ email: "user@example.com", status: "Available" }`
+ * @param ctx - Azure Functions execution context with logging and bindings.
+ * @param req - HTTP request object containing contact manager data and authorization token.
  *
- * Response:
- *   `{ id: "<new‑profile‑uuid>" }`
+ * @body CreateContactManagerRequest - JSON object with email and initial status.
  *
- * Errors:
- *   - 403 Forbidden if caller is not Admin.
- *   - 400 Bad Request if validation or service errors occur.
+ * @returns
+ * - **200 OK** → Contact Manager created successfully.
+ * - **400 Bad Request** → Invalid request data or business rule violation.
+ * - **401 Unauthorized** → User not authenticated.
+ * - **403 Forbidden** → User lacks Admin/SuperAdmin permissions.
+ * - **500 Internal Server Error** → Database or system errors.
  */
 const create: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
+    ctx.log.info(`[CreateContactManager] Processing contact manager creation request`);
+
     await withAuth(ctx, async () => {
-      // 1) Extract AAD OID from token claims
-      const claims = (ctx as any).bindings.user as { oid?: string; sub?: string };
-      const oid = claims.oid || claims.sub;
-      if (!oid) {
-        return forbidden(ctx, "Cannot determine caller identity");
-      }
-
-      // 2) Lookup caller in DB to confirm Admin role
-      const caller = await prisma.user.findUnique({
-        where: { azureAdObjectId: oid }
-      });
-      if (!caller) {
-        return forbidden(ctx, "Caller not found");
-      }
-      if (caller.role !== "Admin" && caller.role !== "SuperAdmin") {
-        return forbidden(ctx, "Only Admin may add Contact Managers");
-      }
-
-      // 3) Body validation
-      await withBodyValidation(schema)(ctx, async () => {
-        const { email, status } = ctx.bindings.validatedBody as z.infer<typeof schema>;
-        try {
-          // 4) Promote to Contact Manager
-          const profile = await addContactManager(email.toLowerCase(), status);
-          return ok(ctx, { id: profile.id });
-        } catch (err: any) {
-          return badRequest(ctx, err.message);
-        }
+      await withContactManagerCreationAuth()(ctx, async (currentUser: User) => {
+        await withBodyValidation(CreateContactManagerSchema)(ctx, async () => {
+          const request = ctx.bindings.validatedBody as CreateContactManagerRequest;
+          
+          ctx.log.info(`[CreateContactManager] Creating contact manager for ${request.email} by ${currentUser.email}`);
+          
+          // Execute business logic
+          const result = await ContactManagerManagementService.createContactManager(
+            request,
+            currentUser
+          );
+          
+          ctx.log.info(`[CreateContactManager] Contact manager created successfully with ID: ${result.id}`);
+          
+          return ok(ctx, result);
+        });
       });
     });
   },
-  { genericMessage: "Failed to add Contact Manager" }
+  { genericMessage: "Failed to create Contact Manager" }
 );
 
 export default create;

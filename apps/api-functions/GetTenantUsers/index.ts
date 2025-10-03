@@ -3,9 +3,9 @@ import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
 import {
   getGraphToken,
-  fetchAllUsers,
   fetchAppRoleMemberIds,
 } from "../shared/services/graphService";
+import { UserSyncService } from "../shared/services/userSync";
 
 /**
  * Minimal representation of an Azure AD user as returned by Microsoft Graph.
@@ -108,7 +108,7 @@ async function getTenantUsersHandler(
   // 4. Fetch all users from Graph
   let allUsers: GraphUser[];
   try {
-    allUsers = await fetchAllUsers(token);
+    allUsers = await UserSyncService.fetchAllUsers(token);
   } catch (err: any) {
     ctx.log.error("[GetTenantUsers] Error fetching all users", err);
     ctx.res = {

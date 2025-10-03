@@ -60,4 +60,16 @@ export class UserRepository {
       throw new ExpectedError("Insufficient permissions", 403);
     }
   }
+
+  /**
+   * Finds a user by email address.
+   *
+   * @param email - Email address to search for.
+   * @returns The user or null.
+   */
+  static async findByEmail(email: string) {
+    return prisma.user.findUnique({ 
+      where: { email: email.toLowerCase() } 
+    });
+  }
 }

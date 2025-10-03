@@ -3,8 +3,9 @@ import {
   getGraphToken,
   assignAppRoleToPrincipal,
   removeAllAppRolesFromPrincipalOnSp,
-  fetchAllUsers,
 } from "./graphService";
+import { UserSyncService } from "./userSync";
+import { GraphUser } from "./graphService";
 import { config } from "../config";
 import { UserRole } from "@prisma/client";
 
@@ -71,8 +72,8 @@ export async function addSuperAdmin(email: string): Promise<SuperAdminDto> {
 
   if (!user) {
     const token = await getGraphToken();
-    const allGraphUsers = await fetchAllUsers(token);
-    const graphUser = allGraphUsers.find((u) => {
+    const allGraphUsers = await UserSyncService.fetchAllUsers(token);
+    const graphUser = allGraphUsers.find((u: GraphUser) => {
       const addr = (u.mail ?? u.userPrincipalName ?? "").toLowerCase();
       return addr === normalizedEmail;
     });

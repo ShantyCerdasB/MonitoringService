@@ -3,8 +3,9 @@ import {
   getGraphToken,
   assignAppRoleToPrincipal,
   removeAllAppRolesFromPrincipalOnSp,
-  fetchAllUsers,
 } from "./graphService";
+import { UserSyncService } from "./userSync";
+import { GraphUser } from "./graphService";
 import { config } from "../config";
 import { ContactManagerStatus, UserRole } from "@prisma/client";
 import { sendToGroup } from "./webPubSubService";
@@ -78,8 +79,8 @@ export async function addContactManager(
   // 2) If not found, fetch from Graph and create a new user record
   if (!user) {
     const token = await getGraphToken();
-    const allGraphUsers = await fetchAllUsers(token);
-    const graphUser = allGraphUsers.find(u => {
+    const allGraphUsers = await UserSyncService.fetchAllUsers(token);
+    const graphUser = allGraphUsers.find((u: GraphUser) => {
       const userEmail = (u.mail ?? u.userPrincipalName ?? "").toLowerCase();
       return userEmail === normalizedEmail;
     });

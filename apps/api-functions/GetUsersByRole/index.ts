@@ -6,9 +6,9 @@ import { ok, unauthorized, badRequest } from "../shared/utils/response";
 import prisma from "../shared/services/prismaClienService";
 import {
   getGraphToken,
-  fetchAllUsers,
   fetchAppRoleMemberIds,
 } from "../shared/services/graphService";
+import { UserSyncService } from "../shared/services/userSync";
 
 import {
   findOrCreateAdmin,
@@ -123,7 +123,7 @@ if (includeTenant) {
   ]);
 
   // fetch all tenant users once
-  const graphUsers = await fetchAllUsers(token);
+  const graphUsers = await UserSyncService.fetchAllUsers(token);
 
   for (const gu of graphUsers) {
     if (gu.accountEnabled === false) continue;

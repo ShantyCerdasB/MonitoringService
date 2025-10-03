@@ -1,6 +1,6 @@
 import prisma from "./prismaClienService";
 import { isUuid } from "../utils/uuid";
-import { Prisma, User } from "@prisma/client";
+import { Prisma, User, UserRole } from "@prisma/client";
 
 /* -------------------------------------------------------------------------- */
 /*  Admin bootstrap                                                           */
@@ -87,7 +87,7 @@ export async function upsertUserRole(
   email: string,
   azureAdObjectId: string,
   fullName: string,
-  role: "Admin" | "Supervisor" | "Employee",
+  role: UserRole,
   supervisorId?: string | null            // ← optional: omit = no touch
 ): Promise<{ id: string }> {
   const canonicalEmail = email.toLowerCase();
