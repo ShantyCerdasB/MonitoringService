@@ -1,63 +1,106 @@
 /**
- * @file index.ts
- * @summary Change user role endpoint handler
- * @description HTTP POST endpoint for changing user roles with Azure AD synchronization.
- * Supports rollback on Azure AD failures and enforces business rules.
+ * @fileoverview ChangeUserRole - Azure Function for user role change handling
+ * @description Allows authorized users to change user roles and manage user assignments
  */
 
 import { AzureFunction, Context } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
 import { withBodyValidation } from "../shared/middleware/validate";
-import { withChangeUserRoleAuth } from "../shared/middleware/authorization/specific/changeUserRole";
-import { ok } from "../shared/utils/response";
-import { ChangeUserRoleService } from "../shared/services/changeUserRole";
-import { changeUserRoleRequestSchema, ChangeUserRoleRequest } from "../shared/schemas/changeUserRole/changeUserRoleSchemas";
-import { User } from "@prisma/client";
+import { ok, unauthorized } from "../shared/utils/response";
+import { UserRoleChangeApplicationService } from "../shared/application/services/UserRoleChangeApplicationService";
+import { UserRoleChangeRequest } from "../shared/domain/value-objects/UserRoleChangeRequest";
+import { userRoleChangeSchema } from "../shared/domain/schemas/UserRoleChangeSchema";
+import { serviceContainer } from "../shared/infrastructure/container/ServiceContainer";
+import { handleAnyError } from "../shared/utils/errorHandler";
+import { getCallerAdId } from "../shared/utils/authHelpers";
+import { IUserRepository } from "../shared/domain/interfaces/IUserRepository";
+import { IAuthorizationService } from "../shared/domain/interfaces/IAuthorizationService";
+import { IAuditService } from "../shared/domain/interfaces/IAuditService";
+import { IPresenceService } from "../shared/domain/interfaces/IPresenceService";
 
 /**
- * HTTP POST `/api/ChangeUserRole`
+ * Azure Function: ChangeUserRole
  *
- * Allows authorized users to change user roles with Azure AD synchronization.
- * Supports rollback on Azure AD failures and enforces business rules.
+ * **HTTP POST** `/api/ChangeUserRole`
  *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing user email and new role.
+ * Allows Admins and Supervisors to change user roles and manage user assignments.
  *
- * @body ChangeUserRoleRequest - JSON object with user email and new role.
+ * @logic
+ * 1. Authenticate caller via Azure AD (`withAuth`).
+ * 2. Authorize only users with `Admin`, `Supervisor`, or `SuperAdmin` roles.
+ * 3. Validate payload `{ userEmail, newRole }`.
+ * 4. Supervisors can only assign Employee role; Admins can assign any role.
+ * 5. Update user role in Microsoft Graph and database.
+ * 6. Log audit entry and update presence if needed.
  *
- * @returns
- * - **200 OK** → User role changed successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks required permissions.
- * - **500 Internal Server Error** → Database or system errors.
+ * @param ctx Azure Functions execution context.
  */
 const changeUserRole: AzureFunction = withErrorHandler(
   async (ctx: Context) => {
-    ctx.log.info(`[ChangeUserRole] Processing user role change request`);
-
     await withAuth(ctx, async () => {
-      await withChangeUserRoleAuth()(ctx, async (currentUser: User) => {
-        await withBodyValidation(changeUserRoleRequestSchema)(ctx, async () => {
-          const { userEmail, newRole } = ctx.bindings.validatedBody as ChangeUserRoleRequest;
-          
-          ctx.log.info(`[ChangeUserRole] Changing role for ${userEmail} to ${newRole || "null"} by ${currentUser.email}`);
-          
-          // Execute business logic
-          const result = await ChangeUserRoleService.changeUserRole(
-            { userEmail, newRole },
-            currentUser
-          );
-          
-          ctx.log.info(`[ChangeUserRole] Role change completed with status: ${result.status}`);
-          
-          return ok(ctx, result);
-        });
+      // Initialize service container
+      serviceContainer.initialize();
+
+      // Resolve dependencies from container
+      const userRepository = serviceContainer.resolve<IUserRepository>('UserRepository');
+      const authorizationService = serviceContainer.resolve<IAuthorizationService>('AuthorizationService');
+      const auditService = serviceContainer.resolve<IAuditService>('IAuditService');
+      const presenceService = serviceContainer.resolve<IPresenceService>('PresenceService');
+
+      const userRoleChangeApplicationService = new UserRoleChangeApplicationService(
+        userRepository,
+        authorizationService,
+        auditService,
+        presenceService
+      );
+
+      // Validate request body
+      await withBodyValidation(userRoleChangeSchema)(ctx, async () => {
+        const { userEmail, newRole } = ctx.bindings.validatedBody;
+        const claims = ctx.bindings.user;
+        const callerId = getCallerAdId(claims);
+
+        if (!callerId) {
+          return unauthorized(ctx, "Cannot determine caller identity");
+        }
+
+        try {
+          // Create user role change request
+          const request = UserRoleChangeRequest.fromRequest({ userEmail, newRole });
+
+          // Authorize caller
+          await userRoleChangeApplicationService.authorizeRoleChange(callerId, newRole);
+
+          // Validate request
+          await userRoleChangeApplicationService.validateRoleChangeRequest(request);
+
+          // Execute role change
+          const result = await userRoleChangeApplicationService.changeUserRole(request, callerId);
+
+          ctx.log.info(`ChangeUserRole → ${result.getSummary()}`);
+          return ok(ctx, {
+            message: result.getSummary(),
+            operation: result.getOperationType(),
+            userEmail: result.userEmail,
+            previousRole: result.previousRole,
+            newRole: result.newRole
+          });
+
+        } catch (error) {
+          return handleAnyError(ctx, error, {
+            callerId,
+            userEmail,
+            newRole
+          });
+        }
       });
     });
   },
-  { genericMessage: "Failed to change user role" }
+  {
+    genericMessage: "Internal Server Error in ChangeUserRole",
+    showStackInDev: true,
+  }
 );
 
 export default changeUserRole;

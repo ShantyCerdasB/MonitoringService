@@ -1,55 +1,50 @@
-/**
- * @file index.ts
- * @summary Delete recording endpoint handler
- * @description HTTP DELETE endpoint for deleting recordings with full validation and audit logging.
- */
-
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { withRecordingDeletionAuth } from "../shared/middleware/authorization/specific/recordingDeletion";
+import { withCallerId } from "../shared/middleware/callerId";
+import { withPathValidation } from "../shared/middleware/pathValidation";
 import { ok } from "../shared/utils/response";
-import { RecordingDeletionService } from "../shared/services/recordingDeletion";
-import { User } from "@prisma/client";
+import { ServiceContainer } from "../shared/infrastructure/container/ServiceContainer";
+import { DeleteRecordingRequest } from "../shared/domain/value-objects/DeleteRecordingRequest";
+import { DeleteRecordingApplicationService } from "../shared/application/services/DeleteRecordingApplicationService";
+import { deleteRecordingSchema } from "../shared/domain/schemas/DeleteRecordingSchema";
 
 /**
- * HTTP DELETE `/api/recordings/{id}`
+ * Azure Function HTTP trigger to delete a recording by id.
  *
- * Deletes a recording with full validation, blob cleanup, and audit logging.
- * Only SuperAdmin role can delete recordings. Any recording state can be deleted.
+ * @route DELETE /api/recordings/{id}
  *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing authorization token.
+ * Security:
+ * - Caller must be authenticated via `withAuth`.
+ * - Only users with role SuperAdmin are authorized.
  *
- * @pathParam id - UUID of the recording session to delete.
- *
- * @returns
- * - **200 OK** → Recording deleted successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks SuperAdmin permissions.
- * - **404 Not Found** → Recording not found.
- * - **500 Internal Server Error** → Database or system errors.
+ * Behavior:
+ * - Deletes the blob from Azure Blob Storage (when path can be determined).
+ * - Deletes the DB row for the session.
+ * - Returns a summary indicating blob and DB deletion outcome.
  */
 const deleteRecordingFunction: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
-    ctx.log.info(`[DeleteRecordingFunction] Processing recording deletion request`);
-
     await withAuth(ctx, async () => {
-      await withRecordingDeletionAuth()(ctx, async (currentUser: User) => {
-        const sessionId = req.params?.id;
-        
-        ctx.log.info(`[DeleteRecordingFunction] Deleting recording ${sessionId} by ${currentUser.email}`);
-        
-        // Execute business logic
-        const result = await RecordingDeletionService.deleteRecording(
-          { sessionId },
-          currentUser
-        );
-        
-        ctx.log.info(`[DeleteRecordingFunction] Recording deleted successfully: ${result.sessionId}`);
-        
-        return ok(ctx, result);
+      await withCallerId(ctx, async () => {
+        await withPathValidation(ctx, deleteRecordingSchema, async (validatedParams) => {
+          // Initialize service container
+          const serviceContainer = ServiceContainer.getInstance();
+          serviceContainer.initialize();
+
+          // Resolve application service
+          const applicationService = serviceContainer.resolve<DeleteRecordingApplicationService>('DeleteRecordingApplicationService');
+          const callerId = ctx.bindings.callerId as string;
+
+          // Create request object
+          const request = DeleteRecordingRequest.fromParams(validatedParams as unknown as { id: string });
+
+          // Execute deletion
+          const response = await applicationService.deleteRecording(callerId, request);
+
+          // Return response
+          return ok(ctx, response.toPayload());
+        });
       });
     });
   },

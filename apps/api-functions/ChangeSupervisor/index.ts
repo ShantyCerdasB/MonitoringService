@@ -1,63 +1,111 @@
 /**
- * @file index.ts
- * @summary Change supervisor endpoint handler
- * @description HTTP POST endpoint for changing supervisor assignments for employees.
- * Supports bulk operations and supervisor removal.
+ * @fileoverview ChangeSupervisor - Azure Function for supervisor change handling
+ * @description Allows authorized users to change supervisor assignments for employees
  */
 
 import { AzureFunction, Context } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
 import { withBodyValidation } from "../shared/middleware/validate";
-import { withChangeSupervisorAuth } from "../shared/middleware/authorization/specific/changeSupervisor";
 import { ok } from "../shared/utils/response";
-import { ChangeSupervisorService } from "../shared/services/changeSupervisor";
-import { changeSupervisorRequestSchema, ChangeSupervisorRequest } from "../shared/schemas/changeSupervisor/changeSupervisorSchemas";
-import { User } from "@prisma/client";
+import { SupervisorApplicationService } from "../shared/application/services/SupervisorApplicationService";
+import { SupervisorAssignment } from "../shared/domain/value-objects/SupervisorAssignment";
+import { supervisorAssignmentSchema } from "../shared/domain/schemas/SupervisorAssignmentSchema";
+import { serviceContainer } from "../shared/infrastructure/container/ServiceContainer";
+import { handleAnyError } from "../shared/utils/errorHandler";
+import { getCallerAdId } from "../shared/utils/authHelpers";
+import { IUserRepository } from "../shared/domain/interfaces/IUserRepository";
+import { IAuthorizationService } from "../shared/domain/interfaces/IAuthorizationService";
+import { ISupervisorRepository } from "../shared/domain/interfaces/ISupervisorRepository";
+import { ICommandMessagingService } from "../shared/domain/interfaces/ICommandMessagingService";
+import { ISupervisorManagementService } from "../shared/domain/interfaces/ISupervisorManagementService";
+import { IAuditService } from "../shared/domain/interfaces/IAuditService";
 
 /**
- * HTTP POST `/api/ChangeSupervisor`
+ * Azure Function: ChangeSupervisor
  *
- * Allows authorized users to change supervisor assignments for employees.
- * Supports bulk operations and supervisor removal.
+ * **HTTP POST** `/api/ChangeSupervisor`
  *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing user emails and new supervisor email.
+ * Allows Admins and Supervisors to change supervisor assignments for employees.
  *
- * @body ChangeSupervisorRequest - JSON object with user emails and new supervisor email.
+ * @logic
+ * 1. Authenticate caller via Azure AD (`withAuth`).
+ * 2. Authorize only users with `Admin`, `Supervisor`, or `SuperAdmin` roles.
+ * 3. Validate payload `{ userEmails, newSupervisorEmail }`.
+ * 4. Verify the supervisor exists and has `Supervisor` role (if provided).
+ * 5. Update supervisor assignments for all valid employees.
+ * 6. Send notifications to affected users.
  *
- * @returns
- * - **200 OK** → Supervisor assignments updated successfully.
- * - **400 Bad Request** → Invalid request data or supervisor not found.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks required permissions.
- * - **500 Internal Server Error** → Database or system errors.
+ * @param ctx Azure Functions execution context.
  */
 const changeSupervisor: AzureFunction = withErrorHandler(
   async (ctx: Context) => {
-    ctx.log.info(`[ChangeSupervisor] Processing supervisor assignment changes`);
-
     await withAuth(ctx, async () => {
-      await withChangeSupervisorAuth()(ctx, async (currentUser: User) => {
-        await withBodyValidation(changeSupervisorRequestSchema)(ctx, async () => {
-          const { userEmails, newSupervisorEmail } = ctx.bindings.validatedBody as ChangeSupervisorRequest;
-          
-          ctx.log.info(`[ChangeSupervisor] Changing supervisor for ${userEmails.length} users to ${newSupervisorEmail || "none"} by ${currentUser.email}`);
-          
-          // Execute business logic
-          const result = await ChangeSupervisorService.changeSupervisorAssignments(
-            { userEmails, newSupervisorEmail },
-            currentUser
-          );
-          
-          ctx.log.info(`[ChangeSupervisor] Updated ${result.updatedCount} users, skipped ${result.skippedCount} users`);
-          
-          return ok(ctx, result);
-        });
+      // Initialize service container
+      serviceContainer.initialize();
+
+      // Resolve dependencies from container
+      const userRepository = serviceContainer.resolve<IUserRepository>('UserRepository');
+      const authorizationService = serviceContainer.resolve<IAuthorizationService>('AuthorizationService');
+      const supervisorRepository = serviceContainer.resolve<ISupervisorRepository>('SupervisorRepository');
+      const commandMessagingService = serviceContainer.resolve<ICommandMessagingService>('CommandMessagingService');
+      const supervisorManagementService = serviceContainer.resolve<ISupervisorManagementService>('SupervisorManagementService');
+
+      const auditService = serviceContainer.resolve<IAuditService>('IAuditService');
+
+      const supervisorApplicationService = new SupervisorApplicationService(
+        userRepository,
+        authorizationService,
+        supervisorRepository,
+        commandMessagingService,
+        supervisorManagementService,
+        auditService
+      );
+
+      // Validate request body
+      await withBodyValidation(supervisorAssignmentSchema)(ctx, async () => {
+        const { userEmails, newSupervisorEmail } = ctx.bindings.validatedBody;
+        const claims = ctx.bindings.user;
+        const callerId = getCallerAdId(claims);
+
+        if (!callerId) {
+          return handleAnyError(ctx, new Error("Cannot determine caller identity"), { userEmails, newSupervisorEmail });
+        }
+
+        try {
+          // Create supervisor assignment
+          const assignment = SupervisorAssignment.fromRequest({ userEmails, newSupervisorEmail });
+
+          // Authorize caller
+          await supervisorApplicationService.authorizeSupervisorChange(callerId);
+
+          // Validate supervisor assignment
+          await supervisorApplicationService.validateSupervisorAssignment(assignment);
+
+          // Execute supervisor change
+          const result = await supervisorApplicationService.changeSupervisor(assignment);
+
+          ctx.log.info(`ChangeSupervisor → updated ${result.updatedCount} row(s), skipped ${result.skippedCount} row(s).`);
+          return ok(ctx, { 
+            updatedCount: result.updatedCount,
+            skippedCount: result.skippedCount,
+            totalProcessed: result.totalProcessed
+          });
+
+        } catch (error) {
+          return handleAnyError(ctx, error, {
+            callerId,
+            userEmails,
+            newSupervisorEmail
+          });
+        }
       });
     });
   },
-  { genericMessage: "Failed to change supervisor assignments" }
+  {
+    genericMessage: "Internal Server Error in ChangeSupervisor",
+    showStackInDev: true,
+  }
 );
 
 export default changeSupervisor;

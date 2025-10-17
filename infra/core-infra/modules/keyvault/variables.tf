@@ -14,48 +14,48 @@ variable "location" {
 }
 
 variable "key_vault_sku_name" {
-  description = "Key Vault SKU name (standard or premium)"
-  type        = string
+  type = string
+  description = "Key vault sku name"
 }
 
 variable "webpubsub_connection_string" {
-  description = "Azure Web PubSub connection string"
-  type        = string
-  sensitive   = true
+  type = string
+  description = "webpubsub connection string"
 }
 
+
 variable "livekit_api_key" {
-  description = "LiveKit API key for video conferencing service"
+  description = "LiveKit API key"
   type        = string
   sensitive   = true
 }
 
 variable "livekit_api_secret" {
-  description = "LiveKit API secret for video conferencing service"
+  description = "LiveKit API secret"
   type        = string
   sensitive   = true
 }
 
 variable "azure_client_secret" {
-  description = "Azure AD application client secret"
+  description = "Azure AD client secret for Graph or other"
   type        = string
   sensitive   = true
 }
 
 variable "service_bus_connection" {
-  description = "Azure Service Bus connection string"
+  description = "Service Bus connection string"
   type        = string
   sensitive   = true
 }
 
 variable "webpubsub_key" {
-  description = "Azure Web PubSub access key"
+  description = "Azure Web PubSub key"
   type        = string
   sensitive   = true
 }
 
+
 variable "postgres_database_url" {
-  description = "PostgreSQL database connection URL"
-  type        = string
-  sensitive   = true
+    type = string
+    sensitive = true
 }

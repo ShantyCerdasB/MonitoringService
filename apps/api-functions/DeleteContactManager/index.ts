@@ -1,55 +1,68 @@
 /**
- * @file index.ts
- * @summary Delete contact manager endpoint handler
- * @description HTTP DELETE endpoint for deleting contact managers with full validation and audit logging.
+ * @fileoverview DeleteContactManager - Azure Function for removing Contact Manager profiles
+ * @summary Handles the deletion of Contact Manager profiles with proper authorization
+ * @description This function removes a Contact Manager by changing their role to Unassigned,
+ * deleting their profile, and logging the action. Only users with Admin or SuperAdmin roles can perform this action.
  */
 
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { withContactManagerDeletionAuth } from "../shared/middleware/authorization/specific/userManagement";
+import { withCallerId } from "../shared/middleware/callerId";
+import { requireAdminAccess } from "../shared/middleware/authorization";
 import { ok } from "../shared/utils/response";
-import { ContactManagerManagementService } from "../shared/services/contactManagerManagement";
-import { User } from "@prisma/client";
+import { deleteContactManagerSchema } from "../shared/domain/schemas/DeleteContactManagerSchema";
+import { DeleteContactManagerRequest } from "../shared/domain/value-objects/DeleteContactManagerRequest";
+import { ContactManagerApplicationService } from "../shared/application/services/ContactManagerApplicationService";
+import { serviceContainer } from "../shared/infrastructure/container/ServiceContainer";
 
 /**
- * HTTP DELETE `/api/contactManagers/{id}`
- *
- * Deletes a Contact Manager with full validation, Azure AD integration, and audit logging.
- * Only Admin and SuperAdmin roles can delete Contact Managers.
- *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing authorization token.
- *
- * @pathParam id - UUID of the Contact Manager profile to delete.
- *
- * @returns
- * - **200 OK** → Contact Manager deleted successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks Admin/SuperAdmin permissions.
- * - **404 Not Found** → Contact Manager not found.
- * - **500 Internal Server Error** → Database or system errors.
+ * Azure Function handler for deleting Contact Manager profiles.
+ * 
+ * This function handles the removal of a Contact Manager by:
+ * 1. Authenticating the caller using Azure AD token
+ * 2. Extracting caller ID and validating admin access
+ * 3. Validating the path parameter (profileId)
+ * 4. Delegating to ContactManagerApplicationService for business logic
+ * 5. Returning success confirmation
+ * 
+ * @param ctx - Azure Function context
+ * @param req - HTTP request containing the Contact Manager deletion data
+ * @returns Promise that resolves when the Contact Manager is deleted
+ * @throws {ForbiddenError} when caller lacks admin privileges
+ * @throws {BadRequestError} when request validation fails
+ * @throws {ServiceError} when Contact Manager deletion fails
+ * 
+ * @example
+ * DELETE /api/contactManagers/{profileId}
+ * Response: { "message": "Contact Manager deleted successfully" }
  */
 const removeHandler: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
-    ctx.log.info(`[DeleteContactManager] Processing contact manager deletion request`);
-
     await withAuth(ctx, async () => {
-      await withContactManagerDeletionAuth()(ctx, async (currentUser: User) => {
+      await withCallerId(ctx, async () => {
+        await requireAdminAccess()(ctx);
+        
+        // Validate path parameter
         const profileId = ctx.bindingData.id as string;
+        const validationResult = deleteContactManagerSchema.safeParse({ profileId });
         
-        ctx.log.info(`[DeleteContactManager] Deleting contact manager ${profileId} by ${currentUser.email}`);
-        
-        // Execute business logic
-        const result = await ContactManagerManagementService.deleteContactManager(
-          profileId,
-          currentUser
-        );
-        
-        ctx.log.info(`[DeleteContactManager] Contact manager deleted successfully: ${result.profileId}`);
-        
-        return ok(ctx, result);
+        if (!validationResult.success) {
+          ctx.res = {
+            status: 400,
+            body: { error: "Invalid profile ID format" }
+          };
+          return;
+        }
+
+        serviceContainer.initialize();
+
+        const applicationService = serviceContainer.resolve<ContactManagerApplicationService>('ContactManagerApplicationService');
+        const request = DeleteContactManagerRequest.fromPayload({ profileId });
+        const callerId = ctx.bindings.callerId as string;
+
+        await applicationService.deleteContactManager(request, callerId);
+        ok(ctx, { message: "Contact Manager deleted successfully" });
       });
     });
   },

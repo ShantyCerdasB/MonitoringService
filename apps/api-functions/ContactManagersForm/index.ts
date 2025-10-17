@@ -1,66 +1,63 @@
 /**
- * @file index.ts
- * @summary Contact manager form endpoint handler
- * @description HTTP POST endpoint for submitting contact manager forms with image processing and chat integration.
+ * @fileoverview ContactManagersForm - Azure Function for contact manager form submissions
+ * @description Allows authenticated users to submit contact manager forms with image uploads and chat notifications
  */
 
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
-import { withAuth } from "../shared/middleware/auth";
+import { Context, HttpRequest } from "@azure/functions";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
+import { withAuth } from "../shared/middleware/auth";
 import { withBodyValidation } from "../shared/middleware/validate";
-import { withContactManagerFormAuth } from "../shared/middleware/authorization/specific/contactManagerForm";
+import { withCallerId } from "../shared/middleware/callerId";
 import { ok } from "../shared/utils/response";
-import { ContactManagerFormService } from "../shared/services/contactManagerForm";
-import { ContactManagerFormSchema, ContactManagerFormRequest } from "../shared/schemas/contactManagerForm";
-import { User } from "@prisma/client";
-
-
+import { contactManagerFormSchema } from "../shared/domain/schemas/ContactManagerFormSchema";
+import { ContactManagerFormRequest } from "../shared/domain/value-objects/ContactManagerFormRequest";
+import { ContactManagerFormApplicationService } from "../shared/application/services/ContactManagerFormApplicationService";
+import { serviceContainer } from "../shared/infrastructure/container/ServiceContainer";
 
 /**
- * HTTP POST `/api/ContactManagersForm`
+ * Azure Function: ContactManagersForm
  *
- * Allows PSOs to submit contact manager forms with image processing and chat integration.
- * Supports Disconnections, Admissions, and Assistance form types.
+ * HTTP POST /api/ContactManagersForm
  *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing form data and authorization token.
+ * Allows authenticated users to submit contact manager forms with image uploads
+ * and automatic chat notifications to the Contact Managers group.
  *
- * @body ContactManagerFormRequest - JSON object with form type and data.
+ * Workflow:
+ * 1. Validate JWT via `withAuth`, populating `ctx.bindings.user`.
+ * 2. Extract caller ID via `withCallerId`, populating `ctx.bindings.callerId`.
+ * 3. Validate request body against Zod schema.
+ * 4. Create ContactManagerFormRequest from validated body.
+ * 5. Execute application service to handle business logic.
+ * 6. Return `{ formId: string }` indicating the created form ID.
  *
- * @returns
- * - **200 OK** → Form submitted successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks PSO permissions.
- * - **500 Internal Server Error** → Database or system errors.
+ * @param ctx - Azure Function execution context.
+ * @param req - HTTP request object.
+ * @returns 200 OK with `{ formId: string }` if successful.
+ * @throws 401 Unauthorized if JWT is missing, invalid, or user not authorized.
+ * @throws 400 Bad Request if validation or business rules fail.
  */
-const contactManagersFormFunction: AzureFunction = withErrorHandler(
+const contactManagersFormFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
-    ctx.log.info(`[ContactManagersForm] Processing contact manager form submission`);
-
     await withAuth(ctx, async () => {
-      await withContactManagerFormAuth()(ctx, async (currentUser: User) => {
-        await withBodyValidation(ContactManagerFormSchema)(ctx, async () => {
-          const formData = ctx.bindings.validatedBody as ContactManagerFormRequest;
-          const authToken = (req.headers.authorization || "").split(" ")[1];
-          
-          ctx.log.info(`[ContactManagersForm] Submitting ${formData.formType} form by ${currentUser.fullName}`);
-          
-          // Execute business logic
-          const result = await ContactManagerFormService.submitForm(
-            formData,
-            currentUser,
-            authToken
-          );
-          
-          ctx.log.info(`[ContactManagersForm] Form submitted successfully with ID: ${result.formId}`);
-          
-          return ok(ctx, result);
+      await withCallerId(ctx, async () => {
+        await withBodyValidation(contactManagerFormSchema)(ctx, async () => {
+          serviceContainer.initialize();
+
+          const applicationService = serviceContainer.resolve<ContactManagerFormApplicationService>('ContactManagerFormApplicationService');
+          const request = ContactManagerFormRequest.fromBody(ctx.bindings.validatedBody);
+          const callerId = ctx.bindings.callerId as string;
+          const token = (req.headers.authorization || "").split(" ")[1];
+
+          const result = await applicationService.processForm(request, callerId, token);
+          ok(ctx, result.toPayload());
         });
       });
     });
   },
-  { genericMessage: "Failed to process contact manager form" }
+  {
+    genericMessage: "Internal error processing contact manager form",
+    showStackInDev: true,
+  }
 );
 
 export default contactManagersFormFunction;

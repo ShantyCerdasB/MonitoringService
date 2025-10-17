@@ -1,59 +1,72 @@
 /**
- * @file index.ts
- * @summary Delete super admin endpoint handler
- * @description HTTP DELETE endpoint for deleting super admins with full validation and audit logging.
+ * @fileoverview DeleteSuperAdmin - Azure Function for removing Super Admin role
+ * @summary Handles the removal of Super Admin role with proper authorization
+ * @description This function removes Super Admin role by changing the user's role to Unassigned,
+ * and logging the action. Only users with SuperAdmin role can perform this action.
  */
 
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { withSuperAdminDeletionAuth } from "../shared/middleware/authorization/specific/userManagement";
+import { withCallerId } from "../shared/middleware/callerId";
+import { requireAdminAccess } from "../shared/middleware/authorization";
 import { ok } from "../shared/utils/response";
-import { SuperAdminManagementService } from "../shared/services/superAdminManagement";
-import { User } from "@prisma/client";
+import { deleteSuperAdminSchema } from "../shared/domain/schemas/DeleteSuperAdminSchema";
+import { DeleteSuperAdminRequest } from "../shared/domain/value-objects/DeleteSuperAdminRequest";
+import { SuperAdminApplicationService } from "../shared/application/services/SuperAdminApplicationService";
+import { serviceContainer } from "../shared/infrastructure/container/ServiceContainer";
 
 /**
- * HTTP DELETE `/api/superAdmins/{id}`
- *
- * Deletes a Super Admin with full validation, Azure AD integration, and audit logging.
- * Only SuperAdmin role can delete other SuperAdmins. Cannot delete the last SuperAdmin.
- *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing authorization token.
- *
- * @pathParam id - UUID of the Super Admin user to delete.
- *
- * @returns
- * - **200 OK** → Super Admin deleted successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks SuperAdmin permissions.
- * - **404 Not Found** → Super Admin not found.
- * - **500 Internal Server Error** → Database or system errors.
+ * Azure Function handler for removing Super Admin role.
+ * 
+ * This function handles the removal of Super Admin role by:
+ * 1. Authenticating the caller using Azure AD token
+ * 2. Extracting caller ID and validating Super Admin access
+ * 3. Validating the path parameter (userId)
+ * 4. Delegating to SuperAdminApplicationService for business logic
+ * 5. Returning success confirmation
+ * 
+ * @param ctx - Azure Function context
+ * @param req - HTTP request containing the Super Admin deletion data
+ * @returns Promise that resolves when the Super Admin role is removed
+ * @throws {ForbiddenError} when caller lacks Super Admin privileges
+ * @throws {BadRequestError} when request validation fails
+ * @throws {ServiceError} when Super Admin deletion fails
+ * 
+ * @example
+ * DELETE /api/superAdmins/{userId}
+ * Response: { "message": "Super Admin role removed successfully" }
  */
 const removeHandler: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
-    ctx.log.info(`[DeleteSuperAdmin] Processing super admin deletion request`);
-
     await withAuth(ctx, async () => {
-      await withSuperAdminDeletionAuth()(ctx, async (currentUser: User) => {
+      await withCallerId(ctx, async () => {
+        await requireAdminAccess()(ctx);
+        
+        // Validate path parameter
         const userId = ctx.bindingData.id as string;
+        const validationResult = deleteSuperAdminSchema.safeParse({ userId });
         
-        ctx.log.info(`[DeleteSuperAdmin] Deleting super admin ${userId} by ${currentUser.email}`);
-        
-        // Execute business logic
-        const result = await SuperAdminManagementService.deleteSuperAdmin(
-          userId,
-          currentUser
-        );
-        
-        ctx.log.info(`[DeleteSuperAdmin] Super admin deleted successfully: ${result.userId}`);
-        
-        return ok(ctx, result);
+        if (!validationResult.success) {
+          ctx.res = {
+            status: 400,
+            body: { error: "Invalid user ID format" }
+          };
+          return;
+        }
+
+        serviceContainer.initialize();
+
+        const applicationService = serviceContainer.resolve<SuperAdminApplicationService>('SuperAdminApplicationService');
+        const request = DeleteSuperAdminRequest.fromPayload({ userId });
+        const callerId = ctx.bindings.callerId as string;
+
+        await applicationService.deleteSuperAdmin(request, callerId);
+        ok(ctx, { message: "Super Admin role removed successfully" });
       });
     });
   },
-  { genericMessage: "Failed to delete Super Admin" }
+  { genericMessage: "Failed to remove Super Admin role" }
 );
 
 export default removeHandler;

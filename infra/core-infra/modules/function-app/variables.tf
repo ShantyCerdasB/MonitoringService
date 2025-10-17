@@ -41,12 +41,10 @@ variable "function_plan_sku_size" {
 }
 
 variable "storage_account_snapshot_container_name" {
-  description = "Name of the storage container for application snapshots"
-  type        = string
+  type = string
 }
-
 variable "storage_account_name" {
-  description = "Name of the Storage Account for Function App runtime"
+  description = "Name of an existing Storage Account for the Function App"
   type        = string
 }
 
@@ -89,8 +87,8 @@ variable "secret_uris" {
 }
 
 variable "webpubsub_hub" {
-  description = "Azure Web PubSub hub name for real-time communication"
-  type        = string
+  description = "webpusub hub name"
+  type = string
 }
 # Non-sensitive settings
 variable "azure_tenant_id" {

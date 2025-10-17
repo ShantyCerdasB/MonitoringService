@@ -1,63 +1,63 @@
 /**
- * @file index.ts
- * @summary Create super admin endpoint handler
- * @description HTTP POST endpoint for creating super admins with full validation and audit logging.
+ * @fileoverview CreateSuperAdmin - Azure Function for promoting users to Super Admin role
+ * @summary Handles the creation of Super Admin profiles with proper authorization
+ * @description This function promotes a user to Super Admin role, including Azure AD app role assignment,
+ * database profile creation, and audit logging. Only users with SuperAdmin role can perform this action.
  */
 
 import { AzureFunction, Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
 import { withBodyValidation } from "../shared/middleware/validate";
-import { withSuperAdminCreationAuth } from "../shared/middleware/authorization/specific/userManagement";
+import { withCallerId } from "../shared/middleware/callerId";
+import { requireAdminAccess } from "../shared/middleware/authorization";
 import { ok } from "../shared/utils/response";
-import { SuperAdminManagementService } from "../shared/services/superAdminManagement";
-import { CreateSuperAdminSchema, CreateSuperAdminRequest } from "../shared/schemas/userManagement";
-import { User } from "@prisma/client";
-
+import { createSuperAdminSchema } from "../shared/domain/schemas/CreateSuperAdminSchema";
+import { CreateSuperAdminRequest } from "../shared/domain/value-objects/CreateSuperAdminRequest";
+import { SuperAdminApplicationService } from "../shared/application/services/SuperAdminApplicationService";
+import { serviceContainer } from "../shared/infrastructure/container/ServiceContainer";
 
 /**
- * HTTP POST `/api/superAdmins`
- *
- * Creates a new Super Admin with full validation, Azure AD integration, and audit logging.
- * Only SuperAdmin role can create other SuperAdmins.
- *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing super admin data and authorization token.
- *
- * @body CreateSuperAdminRequest - JSON object with email.
- *
- * @returns
- * - **200 OK** → Super Admin created successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks SuperAdmin permissions.
- * - **500 Internal Server Error** → Database or system errors.
+ * Azure Function handler for creating Super Admin profiles.
+ * 
+ * This function handles the promotion of a user to Super Admin role by:
+ * 1. Authenticating the caller using Azure AD token
+ * 2. Extracting caller ID and validating Super Admin access
+ * 3. Validating the request body (email)
+ * 4. Delegating to SuperAdminApplicationService for business logic
+ * 5. Returning the created Super Admin profile
+ * 
+ * @param ctx - Azure Function context
+ * @param req - HTTP request containing the Super Admin creation data
+ * @returns Promise that resolves when the Super Admin is created
+ * @throws {ForbiddenError} when caller lacks Super Admin privileges
+ * @throws {BadRequestError} when request validation fails
+ * @throws {ServiceError} when Super Admin creation fails
+ * 
+ * @example
+ * POST /api/superAdmins
+ * Body: { "email": "user@example.com" }
+ * Response: { "id": "uuid", "userId": "uuid", ... }
  */
 const create: AzureFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
-    ctx.log.info(`[CreateSuperAdmin] Processing super admin creation request`);
-
     await withAuth(ctx, async () => {
-      await withSuperAdminCreationAuth()(ctx, async (currentUser: User) => {
-        await withBodyValidation(CreateSuperAdminSchema)(ctx, async () => {
-          const request = ctx.bindings.validatedBody as CreateSuperAdminRequest;
-          
-          ctx.log.info(`[CreateSuperAdmin] Creating super admin for ${request.email} by ${currentUser.email}`);
-          
-          // Execute business logic
-          const result = await SuperAdminManagementService.createSuperAdmin(
-            request,
-            currentUser
-          );
-          
-          ctx.log.info(`[CreateSuperAdmin] Super admin created successfully with ID: ${result.id}`);
-          
-          return ok(ctx, result);
+      await withCallerId(ctx, async () => {
+        await requireAdminAccess()(ctx);
+        await withBodyValidation(createSuperAdminSchema)(ctx, async () => {
+          serviceContainer.initialize();
+
+          const applicationService = serviceContainer.resolve<SuperAdminApplicationService>('SuperAdminApplicationService');
+          const request = CreateSuperAdminRequest.fromBody(ctx.bindings.validatedBody);
+          const callerId = ctx.bindings.callerId as string;
+
+          const result = await applicationService.createSuperAdmin(request, callerId);
+          ok(ctx, result.toPayload());
         });
       });
     });
   },
-  { genericMessage: "Failed to create Super Admin" }
+  { genericMessage: "Failed to add Super Admin" }
 );
 
 export default create;

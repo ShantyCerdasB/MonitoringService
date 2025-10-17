@@ -1,34 +1,33 @@
 variable "name_prefix" {
-  description = "Prefix used for naming network resources"
+  description = "Prefix for the name of the resources"
   type        = string
-  default     = "livekit-agent-azure"
+  default     = "livekit-agent-azure" 
 }
 
 variable "region" {
-  description = "Azure region for network deployment"
+  description = "The region in which the resources will be deployed"
   type        = string
-  default     = "eastus"
+  default     = "eastus" 
 }
 
 variable "resource_group" {
-  description = "Resource group name for network resources"
-  type        = string
+    type = string
 }
 
 variable "vnet_ip" {
-  description = "Base IP address for the virtual network"
+  description = "The IP range for the VNET"
   type        = string
   default     = "10.26.0.0"
 }
 
 variable "vnet_mask" {
-  description = "CIDR mask for the virtual network address space"
+  description = "The subnet mask for the VNET"
   type        = string
   default     = "/16"
 }
 
 variable "subnet_mask" {
-  description = "CIDR mask for the AKS subnet"
+  description = "The subnet mask for the AKS cluster - nodes and pods"
   type        = string
   default     = "/20"
 }

@@ -1,59 +1,57 @@
-/**
- * @file index.ts
- * @summary Delete snapshot endpoint handler
- * @description HTTP DELETE endpoint for deleting snapshots with full validation and audit logging.
- */
-
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import { Context, HttpRequest } from "@azure/functions";
 import { withAuth } from "../shared/middleware/auth";
 import { withErrorHandler } from "../shared/middleware/errorHandler";
-import { withSnapshotDeletionAuth } from "../shared/middleware/authorization/specific/snapshotDeletion";
+import { withCallerId } from "../shared/middleware/callerId";
+import { withPathValidation } from "../shared/middleware/validate";
 import { ok } from "../shared/utils/response";
-import { SnapshotDeletionService } from "../shared/services/snapshotDeletion";
-import { User } from "@prisma/client";
+import { ServiceContainer } from "../shared/infrastructure/container/ServiceContainer";
+import { DeleteSnapshotRequest } from "../shared/domain/value-objects/DeleteSnapshotRequest";
+import { DeleteSnapshotApplicationService } from "../shared/application/services/DeleteSnapshotApplicationService";
+import { deleteSnapshotSchema } from "../shared/domain/schemas/DeleteSnapshotSchema";
 
 /**
- * HTTP DELETE `/api/snapshots/{id}`
+ * HTTP DELETE /api/snapshots/{id}
  *
- * Deletes a snapshot with full validation, blob cleanup, and audit logging.
- * Only Admin and SuperAdmin roles can delete snapshots.
+ * Deletes a single snapshot report by its ID.
+ * Only users with Admin or SuperAdmin roles may call this endpoint.
  *
- * @param ctx - Azure Functions execution context with logging and bindings.
- * @param req - HTTP request object containing authorization token.
+ * @remarks
+ * 1. Authenticates the caller via JWT (On-Behalf-Of).  
+ * 2. Extracts caller ID from token.  
+ * 3. Validates the `id` route parameter.  
+ * 4. Authorizes the caller (Admin or SuperAdmin only).  
+ * 5. Deletes the snapshot and optionally its blob.  
+ * 6. Returns `{ deletedId: string, message: string }` on success.
  *
- * @pathParam id - UUID of the snapshot to delete.
- *
- * @returns
- * - **200 OK** → Snapshot deleted successfully.
- * - **400 Bad Request** → Invalid request data or business rule violation.
- * - **401 Unauthorized** → User not authenticated.
- * - **403 Forbidden** → User lacks Admin/SuperAdmin permissions.
- * - **404 Not Found** → Snapshot not found.
- * - **500 Internal Server Error** → Database or system errors.
+ * @param ctx - The Azure Functions execution context.
+ * @param req - The incoming HTTP request.
+ * @returns A 200 OK response with `{ deletedId, message }`, or error response.
  */
-const deleteSnapshotFunction: AzureFunction = withErrorHandler(
+const deleteSnapshotFunction = withErrorHandler(
   async (ctx: Context, req: HttpRequest) => {
-    ctx.log.info(`[DeleteSnapshotFunction] Processing snapshot deletion request`);
-
     await withAuth(ctx, async () => {
-      await withSnapshotDeletionAuth()(ctx, async (currentUser: User) => {
-        const snapshotId = req.params?.id;
-        
-        ctx.log.info(`[DeleteSnapshotFunction] Deleting snapshot ${snapshotId} by ${currentUser.email}`);
-        
-        // Execute business logic
-        const result = await SnapshotDeletionService.deleteSnapshot(
-          { snapshotId },
-          currentUser
-        );
-        
-        ctx.log.info(`[DeleteSnapshotFunction] Snapshot deleted successfully: ${result.snapshotId}`);
-        
-        return ok(ctx, result);
+      await withCallerId(ctx, async () => {
+        await withPathValidation(deleteSnapshotSchema)(ctx, async () => {
+          const serviceContainer = ServiceContainer.getInstance();
+          serviceContainer.initialize();
+
+          const applicationService = serviceContainer.resolve<DeleteSnapshotApplicationService>('DeleteSnapshotApplicationService');
+          const callerId = ctx.bindings.callerId as string;
+
+          const validatedParams = (ctx as any).bindings.validatedParams;
+          const request = DeleteSnapshotRequest.fromParams(callerId, validatedParams);
+
+          const response = await applicationService.deleteSnapshot(callerId, request);
+
+          return ok(ctx, response.toPayload());
+        });
       });
     });
   },
-  { genericMessage: "Failed to delete snapshot" }
+  {
+    genericMessage: "Internal error deleting snapshot",
+    showStackInDev: true,
+  }
 );
 
 export default deleteSnapshotFunction;

@@ -1,17 +1,14 @@
-# Azure Cache for Redis for session storage and caching
-# Provides high-performance in-memory data store
-
 resource "azurerm_redis_cache" "redis_cache" {
   name                = "${var.name_prefix}-redis"
   location            = var.region
   resource_group_name = var.resource_group
-  family              = var.family
-  capacity            = var.capacity
-  sku_name            = var.sku_name
+  family   = var.family
+  capacity = var.capacity
+  sku_name = var.sku_name
+
   minimum_tls_version = "1.2"
 }
 
-# Firewall rule to allow AKS cluster access to Redis
 resource "azurerm_redis_firewall_rule" "allow_aks" {
   name                = "allow_aks"
   resource_group_name = var.resource_group

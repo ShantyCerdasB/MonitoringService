@@ -1,20 +1,20 @@
 variable "name_prefix" {
-  description = "Prefix for public IP resource naming"
+  description = "Common prefix for all resources"
   type        = string
 }
 
 variable "purpose" {
-  description = "Purpose identifier for the public IP (e.g., livekit, stunner)"
+  description = "Short descriptor for this IP (e.g. livekit, stunner)"
   type        = string
 }
 
 variable "resource_group_name" {
-  description = "Resource group name for public IP deployment"
+  description = "Resource Group in which to create the IP"
   type        = string
 }
 
 variable "region" {
-  description = "Azure region for public IP deployment"
+  description = "Azure region (e.g. westus2)"
   type        = string
 }
 

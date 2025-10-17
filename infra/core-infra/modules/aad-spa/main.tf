@@ -1,19 +1,23 @@
-# Azure AD application registration module
-# Creates Single Page Application (SPA) and API application registrations
-# with custom roles and Microsoft Graph permissions
-
-# Generate unique identifiers for custom application roles and API scope
-resource "random_uuid" "app_role_admin" {}
+###########################################################
+# 0) Prerequisites
+# - Ensure you have privileges to register AAD apps and grant admin consent.
+###########################################################
+# Generate stable UUIDs for custom App Roles and the API scope
+resource "random_uuid" "app_role_admin"      {}
 resource "random_uuid" "app_role_supervisor" {}
-resource "random_uuid" "app_role_employee" {}
-resource "random_uuid" "api_scope_id" {}
-resource "random_uuid" "app_role_contact_manager" {}
-resource "random_uuid" "app_role_super_admin" {}
+resource "random_uuid" "app_role_employee"   {}
+resource "random_uuid" "api_scope_id"        {}
+resource "random_uuid" "app_role_contact_manager"        {}
+resource "random_uuid" "app_role_super_admin"        {}
 
-# Current Azure AD tenant configuration
+###########################################################
+# 1) Get the current tenant info (used for building identifier_uris)
+###########################################################
 data "azuread_client_config" "current" {}
 
-# Microsoft Graph API permissions mapping
+###########################################################
+# 2) Define static mappings for Microsoft Graph permissions
+###########################################################
 locals {
   # Well-known client ID for the Microsoft Graph API
   graph_client_id = "00000003-0000-0000-c000-000000000000"
@@ -209,7 +213,7 @@ resource "azuread_application" "spa_app" {
     allowed_member_types = ["User"]
     display_name         = "Contact Manager"
     description          = "Users in this role have contact manager access"
-    value                = "ContactManager"
+    value                = "Contact Manager"
     enabled              = true
   }
 
@@ -218,7 +222,7 @@ resource "azuread_application" "spa_app" {
     allowed_member_types = ["User"]
     display_name         = "Super Admin"
     description          = "Users in this role have super admin access"
-    value                = "SuperAdmin"
+    value                = "Super Admin"
     enabled              = true
   }
 
@@ -321,13 +325,13 @@ resource "azuread_app_role_assignment" "employees_assignment" {
 
 resource "azuread_app_role_assignment" "contact_manager_assignment" {
   principal_object_id = azuread_group.employees_group.object_id
-  app_role_id         = azuread_application.spa_app.app_role_ids["ContactManager"]
+  app_role_id         = azuread_application.spa_app.app_role_ids["Contact Manager"]
   resource_object_id  = azuread_service_principal.spa_sp.object_id
 }
 
 resource "azuread_app_role_assignment" "super_admin_assignment" {
   principal_object_id = azuread_group.super_admins_group.object_id
-  app_role_id         = azuread_application.spa_app.app_role_ids["SuperAdmin"]
+  app_role_id         = azuread_application.spa_app.app_role_ids["Super Admin"]
   resource_object_id  = azuread_service_principal.spa_sp.object_id
 }
 
