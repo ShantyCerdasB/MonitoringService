@@ -8,7 +8,7 @@ import { IAuthorizationService } from '../interfaces/IAuthorizationService';
 import { AuthError } from '../errors/DomainError';
 import { AuthErrorCode } from '../errors/ErrorCodes';
 import { RoleValidationUtils } from './RoleValidationUtils';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../enums/UserRole';
 
 /**
  * Common authorization utilities for domain operations
@@ -114,11 +114,12 @@ export class AuthorizationUtils {
     }
 
     // Use RoleValidationUtils for consistent validation
-    if (!RoleValidationUtils.isValidRoleAssignment(caller.role, newRole)) {
-      if (caller.role === UserRole.Supervisor && newRole !== UserRole.Employee && newRole !== null) {
+    const callerRole = caller.role as UserRole;
+    if (!RoleValidationUtils.isValidRoleAssignment(callerRole, newRole)) {
+      if (callerRole === UserRole.Supervisor && newRole !== UserRole.Employee && newRole !== null) {
         throw new AuthError('Supervisors may only assign Employee role', AuthErrorCode.INSUFFICIENT_PRIVILEGES);
       }
-      if (newRole === null && !RoleValidationUtils.canManageUsers(caller.role)) {
+      if (newRole === null && !RoleValidationUtils.canManageUsers(callerRole)) {
         throw new AuthError('Only Admins can delete users', AuthErrorCode.INSUFFICIENT_PRIVILEGES);
       }
     }

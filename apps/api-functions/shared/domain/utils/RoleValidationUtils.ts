@@ -3,7 +3,7 @@
  * @description Provides reusable role validation functions for domain logic
  */
 
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../enums/UserRole';
 
 /**
  * Common role validation utilities for domain operations

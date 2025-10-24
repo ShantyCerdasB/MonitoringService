@@ -7,6 +7,9 @@ import { usePsoSupervisor } from './Video/hooks/usePsoSupervisor';
 import { usePsoSupervisorNotifications } from './Video/hooks/usePsoSupervisorNotifications';
 import { useAutoReloadWhenIdle } from './Video/hooks/useAutoReloadWhenIdle';
 import { useWebSocketHeartbeat } from '@/shared/hooks/useWebSocketHeartbeat';
+import { usePsoStreamingStatus } from './Video/hooks/usePsoStreamingStatus';
+import { useSynchronizedTimer } from './Video/hooks/useSynchronizedTimer';
+import { CompactTimer } from './Video/components/TimerDisplay';
 
 
 
@@ -78,6 +81,24 @@ const PsoDashboard: React.FC = () => {
   useAutoReloadWhenIdle(isStreaming, { intervalMs: 120_000, onlyWhenVisible: false  });
 
   /**
+   * PSO Streaming Status - para obtener información del timer
+   * Pasar isStreaming para detectar cambios inmediatos
+   */
+  const { status: streamingStatus, loading: statusLoading, error: statusError } = usePsoStreamingStatus(psoEmail, isStreaming);
+
+  /**
+   * Timer sincronizado basado en el streaming status
+   */
+  const timerInfo = useSynchronizedTimer(
+    streamingStatus?.lastSession?.stopReason || null,
+    streamingStatus?.lastSession?.stoppedAt || null
+  );
+
+  // Debug logging (only log when streaming status changes significantly)
+  useEffect(() => {
+  }, [psoEmail, streamingStatus?.lastSession?.stopReason, statusLoading, statusError, timerInfo]);
+
+  /**
    * Contact Manager data feed for the given PSO.
    * - `managers`: array of ContactManagerProfile records.
    * - `cmLoading`: loading state for table and modal.
@@ -108,23 +129,48 @@ const PsoDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Streaming viewport: responsive height, black background */}
-        <div className="flex flex-col w-full max-w-4xl mb-4 rounded-xl overflow-hidden bg-black h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[80vh]">
-          <video
-            ref={videoRef}
-            autoPlay playsInline muted={false} controls={false}
-            className="w-full h-full"
-            poster="https://via.placeholder.com/640x360?text=No+Stream"
-          />
-          <audio ref={audioRef} autoPlay hidden />
-          {/* Status overlay */}
-          <div className="p-4 text-center text-white bg-[rgba(0,0,0,0.5)]">
-            Streaming:{' '}
-            <span className={isStreaming ? 'text-green-400' : 'text-red-400'}>
-              {isStreaming ? 'ON' : 'OFF'}
-            </span>
-          </div>
-        </div>
+         {/* Streaming viewport: responsive height, black background */}
+         <div className="relative w-full max-w-4xl mb-4 rounded-xl overflow-hidden bg-black h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[80vh]">
+           <video
+             ref={videoRef}
+             autoPlay playsInline muted={false} controls={false}
+             className="w-full h-full"
+             poster="https://via.placeholder.com/640x360?text=No+Stream"
+           />
+           <audio ref={audioRef} autoPlay hidden />
+           
+           {/* Status overlay - CENTRADO como VideoCard */}
+           {!isStreaming && (
+             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
+               <div className="text-center text-white">
+                 <div className="mb-4">
+                   Streaming:{' '}
+                   <span className="text-red-400">
+                     OFF
+                   </span>
+                 </div>
+                 
+                 {/* Status and Timer Display - Solo cuando hay timer activo */}
+                 {timerInfo && (
+                   <div className="mt-4">
+                     <div className="text-xl font-medium text-yellow-400 mb-2">
+                       {timerInfo.type === 'LUNCH_BREAK' && 'Lunch Break'}
+                       {timerInfo.type === 'SHORT_BREAK' && 'Short Break'}
+                       {timerInfo.type === 'QUICK_BREAK' && 'Quick Break'}
+                       {timerInfo.type === 'EMERGENCY' && 'Emergency'}
+                     </div>
+                     <CompactTimer timerInfo={timerInfo} />
+                     {timerInfo.isNegative && (
+                       <div className="text-sm text-red-400 mt-2">
+                         Overdue
+                       </div>
+                     )}
+                   </div>
+                 )}
+               </div>
+             </div>
+           )}
+         </div>
 
         {/* Bitrate Dashboard - Hidden to avoid interference */}
         {/* <div className="w-full max-w-4xl mb-4">

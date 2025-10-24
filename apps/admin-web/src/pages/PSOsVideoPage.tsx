@@ -11,6 +11,7 @@ import SimpleVideoCard from './Video/components/SimpleVideoCard';
 import { useIsolatedStreams } from './Video/hooks/useIsolatedStreams';
 import { useVideoActions } from './Video/hooks/UseVideoAction';
 import { useStablePSOs } from './Video/hooks/useStablePSOs';
+import { useSupervisorChangeNotifications } from '@/shared/hooks/useSupervisorChangeNotifications';
 
 /**
  * Gets user-friendly status message for streaming status
@@ -112,6 +113,36 @@ const PSOsPage: React.FC = () => {
     }
   }, [account, userInfo, loadUserInfo]);
   
+  // Local state to track supervisor changes from WebSocket messages
+  const [supervisorUpdates, setSupervisorUpdates] = useState<Record<string, { email: string; name: string }>>({});
+
+  // Supervisor change notifications
+  const handleSupervisorChange = useCallback((data: any) => {
+    console.log(`🔄 [PSOsVideoPage] Supervisor change received:`, data);
+    // Log the current state for debugging
+    console.log(`🔄 [PSOsVideoPage] Current viewer: ${viewerEmail}, Role: ${viewerRole}`);
+    console.log(`🔄 [PSOsVideoPage] Affected PSOs: ${data.psoNames.join(', ')}`);
+    console.log(`🔄 [PSOsVideoPage] New supervisor: ${data.newSupervisorName}`);
+    
+    // Update local state with supervisor changes from WebSocket message
+    const updates: Record<string, { email: string; name: string }> = {};
+    data.psoEmails.forEach((psoEmail: string, index: number) => {
+      updates[psoEmail] = {
+        email: data.newSupervisorEmail,
+        name: data.newSupervisorName
+      };
+    });
+    
+    console.log(`🔄 [PSOsVideoPage] Updating supervisor info:`, updates);
+    console.log(`🔄 [PSOsVideoPage] Current supervisorUpdates before:`, supervisorUpdates);
+    setSupervisorUpdates(prev => {
+      const newState = { ...prev, ...updates };
+      console.log(`🔄 [PSOsVideoPage] New supervisorUpdates after:`, newState);
+      return newState;
+    });
+  }, [viewerEmail, viewerRole]);
+
+  useSupervisorChangeNotifications(handleSupervisorChange, viewerEmail, viewerRole || undefined);
 
   /* ------------------------------------------------------------------ */
   /* 2️⃣ Presence data (already initialized by layout)                   */
@@ -151,16 +182,18 @@ useEffect(() => {
   window.localStorage.setItem(lsKey(viewerEmail, 'layout'), String(layout));
 }, [viewerEmail, fixedEmails, layout]);
 
-  /* Prune pinned PSOs that are no longer online (expected behavior) */
-useEffect(() => {
-  // 1) Espera a que la presencia haya terminado de cargar:
-  if (presenceLoading) return;
-  // 2) Si no hay PSOs online, no toques nada:
-  if (allPsos.length === 0) return;
-
-  const onlineSet = new Set(allPsos.map(p => p.email));
-  setFixedEmails(prev => prev.filter(e => onlineSet.has(e)));
-}, [allPsos, presenceLoading]);
+  /* 
+   * REMOVED: Auto-pruning of offline PSOs from localStorage
+   * 
+   * Previously, this effect would automatically remove PSOs from fixedEmails
+   * when they went offline, which caused issues during temporary disconnections.
+   * 
+   * Now, PSOs remain in localStorage until the user explicitly deselects them,
+   * providing better persistence across temporary network issues.
+   * 
+   * The displayList will still filter out offline PSOs for display purposes,
+   * but the localStorage selection persists.
+   */
 
   /* ------------------------------------------------------------------ */
   /* 6️⃣ LiveKit credentials & handlers                                  */
@@ -256,7 +289,8 @@ const displayList = useMemo(() => {
                   displayList.length === 3 ? 2 :
                   displayList.length === 4 ? 2 : 3;
                 return `repeat(${cols}, minmax(0,1fr))`;
-              })()
+              })(),
+              paddingBottom:'260px' 
             }}
           >
             {displayList.map((p, i) => {
@@ -309,15 +343,22 @@ const displayList = useMemo(() => {
               
 
               
+              // Get updated supervisor info from WebSocket message if available
+              const supervisorUpdate = supervisorUpdates[p.email];
+              const currentSupervisorEmail = supervisorUpdate?.email || p.supervisorEmail;
+              const currentSupervisorName = supervisorUpdate?.name || p.supervisorName;
+              
+              // Debug logging removed to reduce console spam
+              
               return (
                 <div
-                  key={key} // ✅ clave estable ÚNICAMENTE aquí
+                  key={`${key}-${currentSupervisorEmail}`} // ✅ Include supervisor in key to force re-render
                   className={`video-card-wrapper w-full h-full relative z-10 ${alignClass}`}
                   style={itemStyle}
                 >
                   <SimpleVideoCard
                     email={p.email}
-                    name={`${p.fullName} — Supervisor: ${p.supervisorName}`}
+                    name={`${p.fullName} — Supervisor: ${currentSupervisorName}`}
                     accessToken={c.accessToken}
                     roomName={c.roomName}
                     livekitUrl={c.livekitUrl}
@@ -327,13 +368,16 @@ const displayList = useMemo(() => {
                     className="w-full h-full"
                     statusMessage={statusMessage || undefined}
                     psoName={p.fullName} // PSO name for the selector
-                    supervisorEmail={p.supervisorEmail} // Current supervisor email
-                    supervisorName={p.supervisorName} // Current supervisor name
+                    supervisorEmail={currentSupervisorEmail} // Updated supervisor email from WebSocket
+                    supervisorName={currentSupervisorName} // Updated supervisor name from WebSocket
                     onSupervisorChange={(psoEmail, newSupervisorEmail) => {
                       console.log(`Supervisor changed for ${psoEmail} to ${newSupervisorEmail}`);
                       // TODO: Handle supervisor change - refresh data or update state
                     }}
-                  portalMinWidthPx={portalMinWidthPx}
+                    portalMinWidthPx={portalMinWidthPx}
+                    // Timer props
+                    stopReason={statusInfo?.lastSession?.stopReason || null}
+                    stoppedAt={statusInfo?.lastSession?.stoppedAt || null}
                   />
                 </div>
               );

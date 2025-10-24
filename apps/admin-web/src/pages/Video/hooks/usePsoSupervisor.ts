@@ -19,6 +19,7 @@ export function usePsoSupervisor(userEmail: string) {
       return;
     }
     
+    // Removed fetch log to reduce console spam
     setLoading(true);
     setError(null);
     
@@ -26,11 +27,14 @@ export function usePsoSupervisor(userEmail: string) {
       const result = await getSupervisorForPso(userEmail);
       
       if ('supervisor' in result) {
+        // Removed success log to reduce console spam
         setSupervisor(result.supervisor);
       } else {
+        // Removed warning log to reduce console spam
         setSupervisor(null);
       }
     } catch (err: any) {
+
       setError(err.message || 'Failed to fetch supervisor');
     } finally {
       setLoading(false);

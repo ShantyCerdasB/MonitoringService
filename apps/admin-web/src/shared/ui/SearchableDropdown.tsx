@@ -44,7 +44,7 @@ export interface SearchableDropdownProps<Value> {
   usePortal?: boolean;
   /** When rendering in portal, ensure the menu is at least this width (px). */
   portalMinWidthPx?: number;
-  /** Close the menu upon selecting an item. Defaults to true. */
+  /** Close the menu upon selecting an item. Defaults to false to allow multiple selections. */
   closeOnSelect?: boolean;
 }
 
@@ -81,14 +81,14 @@ export function SearchableDropdown<Value>({
   placeholder = 'Search...',
   className = '',
   inputClassName = `
-    w-11/12 px-4 py-2
+    w-full px-4 py-2
     bg-[var(--color-primary)] border-0 rounded
     text-white font-normal text-base
     placeholder-gray-200 placeholder-opacity-75 placeholder:text-base
     focus:outline-none
   `,
   menuClassName = `
-    absolute left-0 top-full mt-1 w-11/12 max-h-60 overflow-auto custom-scrollbar
+    absolute left-0 top-full mt-1 w-full max-h-60 overflow-auto custom-scrollbar
     bg-[var(--color-primary)] border-0 rounded shadow-lg z-50
     text-gray-200 font-normal text-base
   `,
@@ -99,7 +99,7 @@ export function SearchableDropdown<Value>({
   `,
   usePortal = false,
   portalMinWidthPx,
-  closeOnSelect = true,
+  closeOnSelect = false,
 }: SearchableDropdownProps<Value>): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [term, setTerm] = useState('');
@@ -133,6 +133,7 @@ export function SearchableDropdown<Value>({
     } else {
       onSelectionChange([...selectedValues, value]);
     }
+
     if (closeOnSelect) {
       setIsOpen(false);
     }
@@ -186,25 +187,59 @@ export function SearchableDropdown<Value>({
     </div>
   );
 
+  // Clear all selections
+  const handleClearAll = () => {
+    onSelectionChange([]);
+    setTerm('');
+    setIsOpen(false);
+  };
+
   return (
     <div className={`relative inline-block w-1/3  ${className}`} ref={containerRef}>
-      {/* Search input */}
-      <input
-        type="search"
-        placeholder={placeholder}
-        value={term}
-        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-          setTerm(e.target.value);
-          setIsOpen(true);
-        }}
-        onClick={() => setIsOpen(true)}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        name="searchSupervisor"
-        className={inputClassName}
-      />
+      {/* Search input with clear button */}
+      <div className="relative">
+        <input
+          type="search"
+          placeholder={placeholder}
+          value={term}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+            setTerm(e.target.value);
+            setIsOpen(true);
+          }}
+          onClick={() => setIsOpen(true)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          name="searchSupervisor"
+          className={inputClassName}
+        />
+        
+        {/* Clear button - only show if there are selected values */}
+        {selectedValues.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+            title="Clear all selections"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
 
       {/* Dropdown menu */}
       {isOpen && (usePortal ? createPortal(menuContent, document.body) : menuContent)}

@@ -86,13 +86,13 @@ export class AuthorizationService implements IAuthorizationService {
 
   /**
    * Authorizes if a user can access streaming status functions
-   * Allows SuperAdmin, Supervisor, and ContactManager roles
+   * Allows SuperAdmin, Admin, Supervisor, and ContactManager roles
    * @param callerId - Azure AD object ID of the caller
    * @returns Promise that resolves when authorized
    * @throws AuthError if not authorized
    */
   async canAccessStreamingStatus(callerId: string): Promise<void> {
-    const allowedRoles: UserRole[] = [UserRole.SuperAdmin, UserRole.Supervisor, UserRole.ContactManager];
+    const allowedRoles: UserRole[] = [UserRole.SuperAdmin, UserRole.Admin, UserRole.Supervisor, UserRole.ContactManager];
     await this.validateUserWithRoles(callerId, allowedRoles, 'accessing streaming status functions');
   }
 
@@ -180,4 +180,24 @@ export class AuthorizationService implements IAuthorizationService {
     const allowedRoles: UserRole[] = [UserRole.Employee];
     await this.validateUserWithRoles(callerId, allowedRoles, 'acknowledging commands');
   }
+
+  /**
+   * Checks if user has Admin or SuperAdmin role only
+   * @param callerId - Azure AD object ID of the caller
+   * @returns Promise that resolves to true if user is Admin or SuperAdmin
+   */
+  async isAdminOrSuperAdmin(callerId: string): Promise<boolean> {
+    const user = await this.userRepository.findByAzureAdObjectId(callerId);
+    return user ? (user.role === 'Admin' || user.role === 'SuperAdmin') : false;
+  }
+
+    /**
+   * Checks if user has SuperAdmin role only
+   * @param callerId - Azure AD object ID of the caller
+   * @returns Promise that resolves to true if user is Admin or SuperAdmin
+   */
+    async isSuperAdmin(callerId: string): Promise<boolean> {
+      const user = await this.userRepository.findByAzureAdObjectId(callerId);
+      return user ? (user.role === 'SuperAdmin') : false;
+    }
 }
