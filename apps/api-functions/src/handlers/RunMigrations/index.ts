@@ -94,6 +94,28 @@ function requiresDataLoss(errorMessage: string, errorOutput: string): boolean {
 }
 
 /**
+ * Executes migration with force reset flag
+ * @param baseCommand - Base migration command
+ * @param execOptions - Execution options
+ * @returns Object with stdout, stderr, and success status
+ */
+async function executeMigrationWithForceReset(
+  baseCommand: string,
+  execOptions: { cwd: string; env: Record<string, string>; timeout: number }
+): Promise<{ stdout: string; stderr: string; succeeded: boolean }> {
+  const migrationCommand = baseCommand.includes('--force-reset') 
+    ? baseCommand 
+    : `${baseCommand} --force-reset --accept-data-loss`;
+  
+  const result = await execAsync(migrationCommand, execOptions);
+  return {
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    succeeded: true
+  };
+}
+
+/**
  * Executes migration with retry logic if data loss is required
  * @param baseCommand - Base migration command
  * @param execOptions - Execution options
@@ -106,7 +128,7 @@ async function executeMigration(
   ctx: Context
 ): Promise<{ stdout: string; stderr: string; succeeded: boolean }> {
   ctx.log.info("[RunMigrations] Starting migration without data loss");
-  let migrationCommand = baseCommand.replace(/--force-reset --accept-data-loss/g, '').trim();
+  const migrationCommand = baseCommand.replaceAll(/--force-reset --accept-data-loss/g, '').trim();
   
   try {
     const result = await execAsync(migrationCommand, execOptions);
@@ -119,24 +141,26 @@ async function executeMigration(
     const errorMessage = extractErrorMessage(firstAttemptError);
     const stdoutValue = extractErrorProperty(firstAttemptError, 'stdout');
     const stderrValue = extractErrorProperty(firstAttemptError, 'stderr');
-    const errorStdout = typeof stdoutValue === 'string' ? stdoutValue : (stdoutValue ? String(stdoutValue) : '');
-    const errorStderr = typeof stderrValue === 'string' ? stderrValue : (stderrValue ? String(stderrValue) : '');
+    
+    let errorStdout: string;
+    if (typeof stdoutValue === 'string') {
+      errorStdout = stdoutValue;
+    } else {
+      errorStdout = stdoutValue ? String(stdoutValue) : '';
+    }
+    
+    let errorStderr: string;
+    if (typeof stderrValue === 'string') {
+      errorStderr = stderrValue;
+    } else {
+      errorStderr = stderrValue ? String(stderrValue) : '';
+    }
+    
     const errorOutput = errorStdout + errorStderr;
     
     if (requiresDataLoss(errorMessage, errorOutput)) {
       ctx.log.warn("[RunMigrations] Migration requires data loss, retrying with --force-reset");
-      
-      migrationCommand = baseCommand;
-      if (!migrationCommand.includes('--force-reset')) {
-        migrationCommand = migrationCommand + ' --force-reset --accept-data-loss';
-      }
-      
-      const result = await execAsync(migrationCommand, execOptions);
-      return {
-        stdout: result.stdout || '',
-        stderr: result.stderr || '',
-        succeeded: true
-      };
+      return await executeMigrationWithForceReset(baseCommand, execOptions);
     }
     
     throw firstAttemptError;
@@ -373,7 +397,7 @@ function preparePrismaRuntime(): { migrationCommand: string; workingDir: string 
     );
   }
 
-  const escapedUrl = config.databaseUrl.replace(/"/g, String.raw`\"`);
+  const escapedUrl = config.databaseUrl.replaceAll('"', String.raw`\"`);
   return {
     migrationCommand: `node "${sourcePrismaBin}" db push --schema "${absoluteSchemaPath}" --url "${escapedUrl}"`,
     workingDir: runtimeRoot,

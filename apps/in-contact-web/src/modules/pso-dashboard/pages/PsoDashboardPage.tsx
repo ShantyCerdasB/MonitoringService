@@ -119,7 +119,9 @@ const PsoDashboardPage: React.FC = () => {
     if (streamingStatus.hasActiveSession) {
       logDebug('[PsoDashboardPage] Auto-resuming stream - session was active', { psoEmail });
       hasInitializedRef.current = true;
-      void startStream();
+      startStream().catch((error) => {
+        logError('[PsoDashboardPage] Failed to auto-resume stream', { error, psoEmail });
+      });
       return;
     }
 
@@ -145,7 +147,9 @@ const PsoDashboardPage: React.FC = () => {
         withinWindow
       });
       hasInitializedRef.current = true;
-      void startStream();
+      startStream().catch((error) => {
+        logError('[PsoDashboardPage] Failed to auto-resume stream', { error, psoEmail });
+      });
     } else {
       logDebug('[PsoDashboardPage] Not auto-resuming stream', {
         reason: stopReason,

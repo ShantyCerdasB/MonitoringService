@@ -10,7 +10,6 @@ import type {
   UserByRole,
   UserManagementConfig,
   BaseUserManagementItem,
-  CandidateUser,
 } from '../../types';
 import { BASE_CANDIDATE_COLUMNS, BASE_MAIN_COLUMNS } from './sharedColumns';
 

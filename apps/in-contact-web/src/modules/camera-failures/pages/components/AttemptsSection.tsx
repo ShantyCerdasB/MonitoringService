@@ -24,9 +24,10 @@ export const AttemptsSection: React.FC<IAttemptsSectionProps> = ({ attempts }) =
         Attempts ({attempts.length})
       </h3>
       <div className="space-y-4">
-        {attempts.map((attempt, index) => (
-          <AttemptItem key={index} attempt={attempt} index={index} />
-        ))}
+        {attempts.map((attempt, index) => {
+          const key = attempt.deviceIdHash || attempt.deviceId || attempt.label || `attempt-${index}`;
+          return <AttemptItem key={key} attempt={attempt} index={index} />;
+        })}
       </div>
     </div>
   );

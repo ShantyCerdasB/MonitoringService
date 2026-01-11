@@ -24,9 +24,10 @@ export const DevicesSection: React.FC<IDevicesSectionProps> = ({ devices }) => {
         Devices Snapshot ({devices.length})
       </h3>
       <div className="space-y-4">
-        {devices.map((device, index) => (
-          <DeviceItem key={index} device={device} index={index} />
-        ))}
+        {devices.map((device, index) => {
+          const key = device.deviceIdHash || device.deviceId || device.label || `device-${index}`;
+          return <DeviceItem key={key} device={device} index={index} />;
+        })}
       </div>
     </div>
   );

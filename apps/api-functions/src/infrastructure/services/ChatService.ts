@@ -165,6 +165,158 @@ export class ChatService implements IChatService {
   }
 
   /**
+   * Creates image card element for adaptive card
+   * @param imageUrl - Image URL
+   * @returns Image card element
+   */
+  private createImageCardElement(imageUrl: string): Record<string, unknown> {
+    return {
+      type: 'Image',
+      url: imageUrl,
+      size: 'Large',
+      style: 'Default',
+      width: '100%',
+      height: 'auto',
+      selectAction: {
+        type: 'Action.OpenUrl',
+        url: imageUrl
+      }
+    };
+  }
+
+  /**
+   * Builds adaptive card body for snapshot report message
+   * @param message - Message data
+   * @returns Array of card body elements
+   */
+  private buildSnapshotReportCardBody(message: Record<string, unknown>): any[] {
+    const cardBody: any[] = [];
+
+    if (message.psoEmail) {
+      cardBody.push({
+        type: 'TextBlock',
+        text: `**Email:** ${message.psoEmail}`,
+        wrap: true
+      });
+    }
+
+    if (message.capturedAt) {
+      cardBody.push({
+        type: 'TextBlock',
+        text: `**Captured At (Central Time):** ${message.capturedAt}`,
+        wrap: true
+      });
+    }
+
+    if (message.capturedBy) {
+      cardBody.push({
+        type: 'TextBlock',
+        text: `**Captured By:** ${message.capturedBy}`,
+        wrap: true
+      });
+    }
+
+    if (message.reason) {
+      cardBody.push({
+        type: 'TextBlock',
+        text: `**Reason:** ${message.reason}`,
+        wrap: true
+      });
+    }
+
+    if (message.imageUrl && typeof message.imageUrl === 'string') {
+      cardBody.push(this.createImageCardElement(message.imageUrl));
+    }
+
+    return cardBody;
+  }
+
+  /**
+   * Builds adaptive card body for form report message
+   * @param message - Message data
+   * @returns Array of card body elements
+   */
+  private buildFormReportCardBody(message: Record<string, unknown>): any[] {
+    const cardBody: any[] = [];
+    const formType = typeof message.formType === 'string' ? message.formType : undefined;
+    const formTypeLabel = formType ? this.humanizeFormType(formType) : 'Form';
+
+    if (message.senderEmail && typeof message.senderEmail === 'string') {
+      cardBody.push({
+        type: 'TextBlock',
+        text: `**Email:** ${message.senderEmail}`,
+        wrap: true
+      });
+    }
+
+    cardBody.push({
+      type: 'TextBlock',
+      text: `**Form Type:** ${formTypeLabel}`,
+      wrap: true
+    });
+
+    if (message.data && typeof message.data === 'object') {
+      cardBody.push(
+        ...Object.entries(message.data).map(([key, value]: [string, any]) => ({
+          type: 'TextBlock',
+          text: `**${this.humanizeKey(key)}:** ${value}`,
+          wrap: true
+        }))
+      );
+    }
+
+    if (message.imageUrl && typeof message.imageUrl === 'string') {
+      cardBody.push(this.createImageCardElement(message.imageUrl));
+    }
+
+    return cardBody;
+  }
+
+  /**
+   * Builds complete adaptive card body based on message type
+   * @param message - Message data
+   * @param subjectText - Subject text for card header
+   * @returns Array of card body elements
+   */
+  private buildAdaptiveCardBody(message: Record<string, unknown>, subjectText: string): any[] {
+    const messageType = message?.type ?? 'contactManagerForm';
+    const cardBody: any[] = [
+      {
+        type: 'TextBlock',
+        text: subjectText,
+        weight: 'Bolder',
+        size: 'Medium',
+        wrap: true
+      }
+    ];
+
+    if (messageType === 'snapshotReport') {
+      cardBody.push(
+        {
+          type: 'TextBlock',
+          text: 'A new snapshot report has been received.',
+          wrap: true
+        },
+        {
+          type: 'TextBlock',
+          text: `**PSO:** ${message.psoName ?? 'Unknown'}`,
+          wrap: true
+        }
+      );
+      cardBody.push(...this.buildSnapshotReportCardBody(message));
+    } else {
+      cardBody.push({
+        type: 'TextBlock',
+        text: `**PSO** **${message.senderName}** has submitted the following report:`,
+        wrap: true
+      });
+      cardBody.push(...this.buildFormReportCardBody(message));
+    }
+
+    return cardBody;
+  }
+
+  /**
    * Posts an adaptive card message to the given chat.
    * @param graph - Graph client already authenticated.
    * @param chatId - Chat identifier.
@@ -172,129 +324,8 @@ export class ChatService implements IChatService {
    */
   private async sendMessageToChat(graph: Client, chatId: string, message: Record<string, unknown>): Promise<void> {
     try {
-      const messageType = message?.type ?? 'contactManagerForm';
-      const subjectText = message?.subject ?? 'Notification';
-
-      const cardBody: any[] = [
-        {
-          type: 'TextBlock',
-          text: subjectText,
-          weight: 'Bolder',
-          size: 'Medium',
-          wrap: true
-        }
-      ];
-
-      if (messageType === 'snapshotReport') {
-        cardBody.push(
-          {
-            type: 'TextBlock',
-            text: 'A new snapshot report has been received.',
-            wrap: true
-          },
-          {
-            type: 'TextBlock',
-            text: `**PSO:** ${message.psoName ?? 'Unknown'}`,
-            wrap: true
-          }
-        );
-
-        if (message.psoEmail) {
-          cardBody.push({
-            type: 'TextBlock',
-            text: `**Email:** ${message.psoEmail}`,
-            wrap: true
-          });
-        }
-
-        if (message.capturedAt) {
-          cardBody.push({
-            type: 'TextBlock',
-            text: `**Captured At (Central Time):** ${message.capturedAt}`,
-            wrap: true
-          });
-        }
-
-        if (message.capturedBy) {
-          cardBody.push({
-            type: 'TextBlock',
-            text: `**Captured By:** ${message.capturedBy}`,
-            wrap: true
-          });
-        }
-
-        if (message.reason) {
-          cardBody.push({
-            type: 'TextBlock',
-            text: `**Reason:** ${message.reason}`,
-            wrap: true
-          });
-        }
-
-        if (message.imageUrl) {
-          cardBody.push({
-            type: 'Image',
-            url: message.imageUrl,
-            size: 'Large',
-            style: 'Default',
-            width: '100%',
-            height: 'auto',
-            selectAction: {
-              type: 'Action.OpenUrl',
-              url: message.imageUrl
-            }
-          });
-        }
-      } else {
-        const formType = typeof message.formType === 'string' ? message.formType : undefined;
-        const formTypeLabel = formType ? this.humanizeFormType(formType) : 'Form';
-        cardBody.push(
-          {
-            type: 'TextBlock',
-            text: `**PSO** **${message.senderName}** has submitted the following report:`,
-            wrap: true
-          },
-        );
-
-        if (message.senderEmail && typeof message.senderEmail === 'string') {
-          cardBody.push({
-            type: 'TextBlock',
-            text: `**Email:** ${message.senderEmail}`,
-            wrap: true
-          });
-        }
-
-        cardBody.push({
-          type: 'TextBlock',
-          text: `**Form Type:** ${formTypeLabel}`,
-          wrap: true
-        });
-
-        if (message.data) {
-          cardBody.push(
-            ...Object.entries(message.data).map(([key, value]: [string, any]) => ({
-              type: 'TextBlock',
-              text: `**${this.humanizeKey(key)}:** ${value}`,
-              wrap: true
-            }))
-          );
-        }
-
-        if (message.imageUrl) {
-          cardBody.push({
-            type: 'Image',
-            url: message.imageUrl,
-            size: 'Large',
-            style: 'Default',
-            width: '100%',
-            height: 'auto',
-            selectAction: {
-              type: 'Action.OpenUrl',
-              url: message.imageUrl
-            }
-          });
-        }
-      }
+      const subjectText = (typeof message?.subject === 'string' ? message.subject : null) ?? 'Notification';
+      const cardBody = this.buildAdaptiveCardBody(message, subjectText);
 
       const cardPayload = {
         $schema: 'https://adaptivecards.io/schemas/adaptive-card.json',
@@ -708,7 +739,7 @@ export class ChatService implements IChatService {
    */
   private humanizeKey(key: string): string {
     return key
-      .replace(/([A-Z])/g, ' $1')
+      .replaceAll(/([A-Z])/g, ' $1')
       .replace(/^./, (str: string) => str.toUpperCase())
       .trim();
   }

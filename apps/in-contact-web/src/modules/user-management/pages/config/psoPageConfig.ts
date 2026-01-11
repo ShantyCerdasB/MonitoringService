@@ -8,7 +8,6 @@ import type { Column } from '@/ui-kit/tables';
 import { createRoleBasedClient } from '../../api/utils';
 import type {
   UserManagementConfig,
-  CandidateUser,
   PsoItem,
 } from '../../types';
 import {

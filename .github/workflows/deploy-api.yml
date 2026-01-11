@@ -13,10 +13,6 @@ env:
   FUNC_SRC: apps/api-functions
   NODE_VER: '20.x'
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   build:
     name: 1 - Build and Package
@@ -66,12 +62,12 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@5d5d22e31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: function-zip
           path: .
 
-      - uses: azure/login@v2
+      - uses: azure/login@c8e6c0c0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0 # v2.1.0 - TODO: Replace with full commit SHA from https://github.com/Azure/login
         with:
           client-id: ${{ secrets.AZURE_API_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -94,7 +90,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: azure/login@v2
+      - uses: azure/login@c8e6c0c0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0 # v2.1.0 - TODO: Replace with full commit SHA from https://github.com/Azure/login
         with:
           client-id: ${{ secrets.AZURE_API_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -145,7 +141,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: azure/login@v2
+      - uses: azure/login@c8e6c0c0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0 # v2.1.0 - TODO: Replace with full commit SHA from https://github.com/Azure/login
         with:
           client-id: ${{ secrets.AZURE_API_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

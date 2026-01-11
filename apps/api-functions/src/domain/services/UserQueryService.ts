@@ -3,7 +3,6 @@
  * @description Handles user query operations using database only
  */
 
-import { UserRole } from '@prisma/client';
 import { IUserRepository } from '../interfaces/IUserRepository';
 import { IUserQueryService } from '../interfaces/IUserQueryService';
 import { UserQueryRequest } from '../value-objects/UserQueryRequest';

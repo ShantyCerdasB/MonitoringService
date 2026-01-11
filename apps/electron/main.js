@@ -1,6 +1,6 @@
 const { app, BrowserWindow, session, Tray, Menu } = require('electron');
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 const dotenv = require('dotenv');
 
 /**
@@ -161,7 +161,8 @@ async function createWindow(startUrl) {
 }
 
 
-app.whenReady().then(async () => {
+(async () => {
+  await app.whenReady();
   attachFileLogger(); // enable file logging
   log('App ready. isPackaged=', app.isPackaged, 'NODE_ENV=', process.env.NODE_ENV || '(unset)');
   log('Paths:', 'resourcesPath=', process.resourcesPath, 'userData=', app.getPath('userData'));
@@ -185,7 +186,7 @@ app.whenReady().then(async () => {
   }
 
   await createWindow(startUrl);
-});
+})();
 
 app.on('before-quit', (e) => {
   if (!allowQuit) {

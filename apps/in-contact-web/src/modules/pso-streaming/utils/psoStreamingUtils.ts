@@ -25,7 +25,7 @@ export function lsKey(viewer: string, what: 'layout' | 'fixed'): string {
  * @returns Saved layout value or fallback
  */
 export function loadLayout(viewer: string, fallback: number = DEFAULT_LAYOUT): LayoutOption {
-  if (typeof globalThis.window === 'undefined') return fallback as LayoutOption;
+  if (globalThis.window === undefined) return fallback as LayoutOption;
   const raw = globalThis.localStorage.getItem(lsKey(viewer, 'layout'));
   const n = raw == null ? fallback : Number(raw);
   return (LAYOUT_OPTIONS as readonly number[]).includes(n as any) ? (n as LayoutOption) : (fallback as LayoutOption);
@@ -37,7 +37,7 @@ export function loadLayout(viewer: string, fallback: number = DEFAULT_LAYOUT): L
  * @returns Array of pinned PSO email addresses
  */
 export function loadFixed(viewer: string): string[] {
-  if (typeof globalThis.window === 'undefined') return [];
+  if (globalThis.window === undefined) return [];
   try {
     const raw = globalThis.localStorage.getItem(lsKey(viewer, 'fixed'));
     if (!raw) return [];

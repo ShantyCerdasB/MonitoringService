@@ -16,8 +16,8 @@ import { SupervisorErrorCode, ValidationErrorCode } from '../errors/ErrorCodes';
  * Domain service for supervisor management operations
  */
 export class SupervisorManagementService implements ISupervisorManagementService {
-  private userRepository: IUserRepository;
-  private supervisorRepository: ISupervisorRepository;
+  private readonly userRepository: IUserRepository;
+  private readonly supervisorRepository: ISupervisorRepository;
 
   /**
    * Creates a new SupervisorManagementService instance
@@ -166,7 +166,7 @@ export class SupervisorManagementService implements ISupervisorManagementService
       }
       
       // Extract name from email (fallback)
-      const fullName = email.split('@')[0].replace(/[._]/g, ' ');
+      const fullName = email.split('@')[0].replaceAll(/[._]/g, ' ');
        await this.userRepository.createPSO(email, fullName, supervisorId);
     }
   }

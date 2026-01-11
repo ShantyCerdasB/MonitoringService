@@ -56,8 +56,8 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
     if (!modal) return;
     const { offsetWidth: w, offsetHeight: h } = modal;
     setPos({
-      x: window.innerWidth / 2 - w / 2,
-      y: window.innerHeight / 2 - h / 2,
+      x: globalThis.window.innerWidth / 2 - w / 2,
+      y: globalThis.window.innerHeight / 2 - h / 2,
     });
   }, [open]);
 

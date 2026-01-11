@@ -8,6 +8,7 @@
 import { Context } from "@azure/functions";
 import { ServiceContainer } from "../infrastructure/container/ServiceContainer";
 import { IErrorLogService } from "../domain/interfaces/IErrorLogService";
+import { ILogWebPubSubErrorOptions } from "../domain/interfaces/ILogWebPubSubErrorOptions";
 import { ErrorSource } from "../domain/enums/ErrorSource";
 import { ErrorSeverity } from "../domain/enums/ErrorSeverity";
 import { ApiEndpoints } from "../domain/constants/ApiEndpoints";
@@ -22,9 +23,7 @@ import { WebSocketEventRequest, WebSocketEventResponse } from "../domain/value-o
  * @param eventName - Name of the WebPubSub event (e.g., "connect", "connected", "disconnected")
  * @param serviceContainer - Service container instance for resolving dependencies
  * @param context - Azure Functions execution context for logging
- * @param serviceName - Optional name of the service that generated the error (for context)
- * @param endpoint - Optional endpoint path (defaults to "/api/webpubsub-events")
- * @param functionName - Optional function name (defaults to "WebPubSubEvents")
+ * @param options - Optional configuration for error logging
  */
 export async function logWebPubSubErrorIfAny(
   response: WebSocketEventResponse,
@@ -32,10 +31,14 @@ export async function logWebPubSubErrorIfAny(
   eventName: string,
   serviceContainer: ServiceContainer,
   context: Context,
-  serviceName?: string,
-  endpoint: string = ApiEndpoints.WEBPUBSUB_EVENTS,
-  functionName: string = FunctionNames.WEBPUBSUB_EVENTS
+  options: ILogWebPubSubErrorOptions = {}
 ): Promise<void> {
+  const {
+    serviceName,
+    endpoint = ApiEndpoints.WEBPUBSUB_EVENTS,
+    functionName = FunctionNames.WEBPUBSUB_EVENTS
+  } = options;
+
   if (response.status >= 400) {
     context.log.error(`${serviceName || "Service"} error`, {
       status: response.status,

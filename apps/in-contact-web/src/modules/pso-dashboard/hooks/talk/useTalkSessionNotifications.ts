@@ -104,16 +104,19 @@ export function useTalkSessionNotifications(
             clearTimeout(justEndedTimeoutRef.current);
             justEndedTimeoutRef.current = null;
           }
-          hangUpSoundPromise
-            .then(() => {
+          
+          const handleSoundSuccess = (): void => {
+            setJustEnded(false);
+          };
+          
+          const handleSoundFailure = (): void => {
+            // Fallback: hide banner after 2 seconds if sound fails
+            justEndedTimeoutRef.current = setTimeout(() => {
               setJustEnded(false);
-            })
-            .catch(() => {
-              // Fallback: hide banner after 2 seconds if sound fails
-              justEndedTimeoutRef.current = setTimeout(() => {
-                setJustEnded(false);
-              }, 2000);
-            });
+            }, 2000);
+          };
+          
+          hangUpSoundPromise.then(handleSoundSuccess).catch(handleSoundFailure);
           
           if (onTalkSessionEnd) {
             onTalkSessionEnd();

@@ -327,7 +327,7 @@ async function handleConnectEvent(
   );
   const response = await applicationService.handleConnection(request);
   
-  await logWebPubSubErrorIfAny(response, request, eventName, serviceContainer, context, "handleConnection");
+  await logWebPubSubErrorIfAny(response, request, eventName, serviceContainer, context, { serviceName: "handleConnection" });
   
   if (response.status === 200) {
     await logWebPubSubEvent(eventName, request, serviceContainer, context);
@@ -358,13 +358,13 @@ async function handleDisconnectEvent(
     "WebSocketConnectionApplicationService"
   );
   const disconnectResponse = await connectionService.handleDisconnection(request, context);
-  await logWebPubSubErrorIfAny(disconnectResponse, request, eventName, serviceContainer, context, "handleDisconnection");
+  await logWebPubSubErrorIfAny(disconnectResponse, request, eventName, serviceContainer, context, { serviceName: "handleDisconnection" });
 
   const cmService = serviceContainer.resolve<ContactManagerDisconnectApplicationService>(
     "ContactManagerDisconnectApplicationService"
   );
   const cmResponse = await cmService.handleContactManagerDisconnect(request);
-  await logWebPubSubErrorIfAny(cmResponse, request, eventName, serviceContainer, context, "ContactManagerDisconnect");
+  await logWebPubSubErrorIfAny(cmResponse, request, eventName, serviceContainer, context, { serviceName: "ContactManagerDisconnect" });
 
   if (disconnectResponse.status === 200) {
     await logWebPubSubEvent(eventName, request, serviceContainer, context);

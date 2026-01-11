@@ -4,7 +4,7 @@
  * @description Handles GET requests to retrieve all active snapshot reasons
  */
 
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import { AzureFunction, Context } from "@azure/functions";
 import { withAuth } from '../../middleware/auth';
 import { withErrorHandler } from '../../middleware/errorHandler';
 import { requirePermission } from '../../middleware/permissions';

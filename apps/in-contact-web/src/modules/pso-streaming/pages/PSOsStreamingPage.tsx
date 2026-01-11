@@ -17,8 +17,7 @@ import { Loading } from '@/ui-kit/feedback';
 import { logError } from '@/shared/utils/logger';
 import { SimpleVideoCard, VideoGridContainer, VideoGridItem } from '../components';
 import { TalkNavigationGuard } from '../components/TalkNavigationGuard';
-import { useIsolatedStreams, useStablePSOs } from '../hooks';
-import { useVideoActions } from '../hooks';
+import { useIsolatedStreams, useStablePSOs, useVideoActions } from '../hooks';
 import { useSupervisorsStore } from '../stores/supervisors-store';
 import { useSnapshotReasonsStore } from '../stores/snapshot-reasons-store';
 import { loadLayout, loadFixed, getStatusMessage, lsKey } from '../utils';
@@ -110,7 +109,7 @@ const PSOsStreamingPage: React.FC = () => {
 
   // Persist preferences to localStorage
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return;
+    if (globalThis.window === undefined) return;
     globalThis.localStorage.setItem(lsKey(viewerEmail, 'fixed'), JSON.stringify(fixedEmails));
     globalThis.localStorage.setItem(lsKey(viewerEmail, 'layout'), String(layout));
   }, [viewerEmail, fixedEmails, layout]);

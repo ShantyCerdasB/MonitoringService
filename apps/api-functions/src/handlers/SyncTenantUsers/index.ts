@@ -14,10 +14,10 @@ function normalizeEmail(email: string): string {
 
 function generateFullNameFromEmail(email: string): string {
   const namePart = email.split('@')[0];
-  const cleanName = namePart.replace(/[._]/g, ' ');
+  const cleanName = namePart.replaceAll(/[._]/g, ' ');
   return cleanName
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
 
@@ -85,6 +85,52 @@ async function processGraphUser(
   return 'created';
 }
 
+/**
+ * Processes all graph users and returns statistics
+ * @param graphUsers - Array of graph users to process
+ * @param ctx - Azure Functions context
+ * @returns Object with counts of created, updated, and skipped users
+ */
+async function processAllGraphUsers(
+  graphUsers: Array<{ id: string; mail?: string; userPrincipalName?: string; displayName?: string; accountEnabled?: boolean }>,
+  ctx: Context
+): Promise<{ createdCount: number; updatedCount: number; skippedCount: number }> {
+  let createdCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+
+  for (const graphUser of graphUsers) {
+    try {
+      if (shouldSkipGraphUser(graphUser)) {
+        skippedCount++;
+        continue;
+      }
+
+      const email = graphUser.mail ?? graphUser.userPrincipalName;
+      const normalizedEmail = normalizeEmail(email!);
+      const processedDisplayName = processDisplayName(graphUser.displayName, normalizedEmail);
+
+      const action = await processGraphUser(graphUser, normalizedEmail, processedDisplayName);
+      
+      if (action === 'created') {
+        createdCount++;
+        ctx.log.info(`[SyncTenantUsers] Created user: ${normalizedEmail}`);
+      } else if (action === 'updated') {
+        updatedCount++;
+        ctx.log.info(`[SyncTenantUsers] Updated user: ${normalizedEmail}`);
+      } else {
+        skippedCount++;
+      }
+    } catch (userError: unknown) {
+      const errorMessage = extractErrorMessage(userError);
+      ctx.log.error(`[SyncTenantUsers] Error processing user ${graphUser.id}:`, userError instanceof Error ? userError : new Error(errorMessage));
+      skippedCount++;
+    }
+  }
+
+  return { createdCount, updatedCount, skippedCount };
+}
+
 async function syncTenantUsersHandler(ctx: Context, req: HttpRequest): Promise<void> {
   await withAuth(ctx, async () => {
     if (req.method !== "POST") {
@@ -104,38 +150,7 @@ async function syncTenantUsersHandler(ctx: Context, req: HttpRequest): Promise<v
       const graphUsers = await graphService.fetchAllUsers(token);
       ctx.log.info(`[SyncTenantUsers] Fetched ${graphUsers.length} users from Graph API`);
 
-      let createdCount = 0;
-      let updatedCount = 0;
-      let skippedCount = 0;
-
-      for (const graphUser of graphUsers) {
-        try {
-          if (shouldSkipGraphUser(graphUser)) {
-            skippedCount++;
-            continue;
-          }
-
-          const email = graphUser.mail ?? graphUser.userPrincipalName;
-          const normalizedEmail = normalizeEmail(email!);
-          const processedDisplayName = processDisplayName(graphUser.displayName, normalizedEmail);
-
-          const action = await processGraphUser(graphUser, normalizedEmail, processedDisplayName);
-          
-          if (action === 'created') {
-            createdCount++;
-            ctx.log.info(`[SyncTenantUsers] Created user: ${normalizedEmail}`);
-          } else if (action === 'updated') {
-            updatedCount++;
-            ctx.log.info(`[SyncTenantUsers] Updated user: ${normalizedEmail}`);
-          } else {
-            skippedCount++;
-          }
-        } catch (userError: unknown) {
-          const errorMessage = extractErrorMessage(userError);
-          ctx.log.error(`[SyncTenantUsers] Error processing user ${graphUser.id}:`, userError instanceof Error ? userError : new Error(errorMessage));
-          skippedCount++;
-        }
-      }
+      const { createdCount, updatedCount, skippedCount } = await processAllGraphUsers(graphUsers, ctx);
 
       ctx.log.info(`[SyncTenantUsers] Sync completed - Created: ${createdCount}, Updated: ${updatedCount}, Skipped: ${skippedCount}`);
 

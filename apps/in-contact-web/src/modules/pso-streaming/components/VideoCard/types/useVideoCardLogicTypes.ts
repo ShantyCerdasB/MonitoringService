@@ -5,10 +5,12 @@
  */
 
 import type { IVideoCardProps } from '../../types/videoCardTypes';
-import type { IVideoCardHeaderProps } from './videoCardComponentTypes';
-import type { IVideoCardDisplayProps } from './videoCardComponentTypes';
-import type { IVideoCardControlsProps } from './videoCardComponentTypes';
-import type { IVideoCardSnapshotModalProps } from './videoCardComponentTypes';
+import type {
+  IVideoCardHeaderProps,
+  IVideoCardDisplayProps,
+  IVideoCardControlsProps,
+  IVideoCardSnapshotModalProps
+} from './videoCardComponentTypes';
 
 /**
  * Options for useVideoCardLogic hook

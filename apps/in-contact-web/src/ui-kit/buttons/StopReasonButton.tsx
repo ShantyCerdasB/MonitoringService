@@ -82,14 +82,14 @@ const StopReasonButton: React.FC<IStopReasonButtonProps> = ({
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      window.addEventListener('scroll', handleScroll, true);
-      window.addEventListener('resize', handleResize);
+      globalThis.window.addEventListener('scroll', handleScroll, true);
+      globalThis.window.addEventListener('resize', handleResize);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleResize);
+      globalThis.window.removeEventListener('scroll', handleScroll, true);
+      globalThis.window.removeEventListener('resize', handleResize);
     };
   }, [isOpen]);
 

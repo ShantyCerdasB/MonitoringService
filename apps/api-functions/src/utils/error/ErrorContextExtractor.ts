@@ -6,7 +6,6 @@
 
 import { Context } from "@azure/functions";
 import { getCallerAdId } from "../authHelpers";
-import type { JwtPayload } from "jsonwebtoken";
 import { ensureBindings } from "../../domain/types/ContextBindings";
 import { ErrorContext } from "../../domain/types";
 
