@@ -1,0 +1,111 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.tfvars.json
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+.env
+# Ignore override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+blobstorage-secret.yaml
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+apps/api-functions/local.settings.json
+# Ignore any .env files that might contain secrets
+*.env
+.env*
+local.settings.json
+# Local development files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+tf-outputs.json
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# My secrets
+manifests/secret.yaml
+kubeconfig.yaml
+
+dist/
+node_modules/
+apps/api-functions/local.settings.json
+apps/electron/daemon/incontactservice.xml
+apps/electron/daemon/incontactservice.out.log
+apps/electron/daemon/incontactservice.exe.config
+apps/electron/daemon/incontactservice.err.log
+apps/electron/daemon/incontactservice.wrapper.log
+apps/electron/daemon/incontactservice.exe
+
+# FLUTTER
+*.properties
+*.jks
+
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+
+# Android
+android/.gradle/
+android/app/.cxx/
+android/app/build/
+*.iml
+.idea/
+
+# macOS
+macos/Flutter/ephemeral/
+
+# Xcode
+ios/Pods/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Runner.xcworkspace/
+
+# Flutter & Dart
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+
+# Android
+**/android/.gradle/
+**/android/app/.cxx/
+**/android/app/build/
+**/android/local.properties
+*.iml
+.idea/
+
+# iOS & macOS
+ios/Pods/
+ios/Flutter/ephemeral/
+ios/.symlinks/
+macos/Flutter/ephemeral/
+macos/Pods/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# General
+*.log
