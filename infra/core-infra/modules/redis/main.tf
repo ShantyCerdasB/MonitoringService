@@ -6,7 +6,8 @@ resource "azurerm_redis_cache" "redis_cache" {
   capacity = var.capacity
   sku_name = var.sku_name
 
-  minimum_tls_version = "1.2"
+  minimum_tls_version        = "1.2"
+  public_network_access_enabled = false
 }
 
 resource "azurerm_redis_firewall_rule" "allow_aks" {

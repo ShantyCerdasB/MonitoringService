@@ -4,10 +4,11 @@ resource "azurerm_storage_account" "storage_account" {
   location                 = var.location
   account_tier             = var.account_tier
   account_replication_type = var.account_replication_type
-
-  # Blob settings
   access_tier              = var.access_tier
 
+  identity {
+    type = "SystemAssigned"
+  }
 
   tags = {
     CreatedBy = "terraform-simple-storage"
@@ -17,7 +18,7 @@ resource "azurerm_storage_account" "storage_account" {
 resource "azurerm_storage_container" "snapshots" {
   name                  = "snapshots"
   storage_account_name  = azurerm_storage_account.storage_account.name
-  container_access_type = "container"
+  container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "recordings" {

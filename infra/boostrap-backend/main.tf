@@ -12,13 +12,16 @@ resource "azurerm_resource_group" "bootstrap" {
   location = var.bootstrap_rg_location
 }
 
-# 2) Create the Storage Account with random suffix
 resource "azurerm_storage_account" "bootstrap" {
   name                     = "${var.storage_account_base_name}${random_string.sa_suffix.result}"
   resource_group_name      = azurerm_resource_group.bootstrap.name
   location                 = azurerm_resource_group.bootstrap.location
   account_tier             = var.storage_account_tier
   account_replication_type = var.storage_account_replication_type
+
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 # 3) Create the Blob Container for Terraform state
