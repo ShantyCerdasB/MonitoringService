@@ -12,8 +12,7 @@ import { ErrorSource } from "../domain/enums/ErrorSource";
 import { ErrorSeverity } from "../domain/enums/ErrorSeverity";
 import { ApiEndpoints } from "../domain/constants/ApiEndpoints";
 import { FunctionNames } from "../domain/constants/FunctionNames";
-import { WebSocketEventRequest } from "../domain/value-objects";
-import { WebSocketEventResponse } from "../domain/value-objects";
+import { WebSocketEventRequest, WebSocketEventResponse } from "../domain/value-objects";
 
 /**
  * Logs an error to the database error log table if the response status indicates an error.

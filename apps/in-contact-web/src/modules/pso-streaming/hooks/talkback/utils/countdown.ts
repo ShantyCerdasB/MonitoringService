@@ -31,7 +31,7 @@ export function startCountdown(
     }
   }, COUNTDOWN_INTERVAL_MS);
 
-  const timeoutId = window.setTimeout(async () => {
+  const timeoutId = globalThis.setTimeout(async () => {
     clearInterval(countdownInterval);
     callbacks.onCountdownUpdate(null);
     callbacks.onCountdownEnd();

@@ -110,9 +110,9 @@ const StopReasonButton: React.FC<IStopReasonButtonProps> = ({
         className="absolute z-10 mt-2 divide-y divide-gray-100 rounded-lg shadow-sm bg-(--color-tertiary) border border-gray-200"
         style={dropdownStyle}
       >
-        <ul role="listbox" className="rounded-lg border-0 bg-(--color-tertiary) text-(--color-primary-dark)">
+        <ul className="rounded-lg border-0 bg-(--color-tertiary) text-(--color-primary-dark)">
           {STOP_REASON_OPTIONS.map((option) => (
-            <li key={option.value} role="option">
+            <li key={option.value}>
               <button
                 type="button"
                 onClick={() => handleOptionSelect(option.value)}

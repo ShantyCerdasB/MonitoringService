@@ -5,7 +5,7 @@
  */
 
 // Mock Azure Functions context and request objects
-(global as any).mockContext = {
+(globalThis as any).mockContext = {
   log: {
     verbose: jest.fn(),
     info: jest.fn(),
@@ -17,7 +17,7 @@
   res: {}
 };
 
-(global as any).mockHttpRequest = {
+(globalThis as any).mockHttpRequest = {
   headers: {},
   query: {},
   body: {},
@@ -87,7 +87,7 @@ jest.mock('@azure/web-pubsub', () => ({
 }));
 
 // Global test utilities
-(global as any).TestUtils = {
+(globalThis as any).TestUtils = {
   /**
    * Creates a mock Azure Functions context
    * @param overrides - Optional overrides for the context
@@ -138,9 +138,9 @@ jest.mock('@azure/web-pubsub', () => ({
    * @returns Mock user object
    */
   createMockUser: (overrides = {}) => ({
-    id: (global as any).TestUtils.generateUuid(),
-    azureAdObjectId: (global as any).TestUtils.generateUuid(),
-    email: (global as any).TestUtils.generateEmail(),
+    id: (globalThis as any).TestUtils.generateUuid(),
+    azureAdObjectId: (globalThis as any).TestUtils.generateUuid(),
+    email: (globalThis as any).TestUtils.generateEmail(),
     role: 'PSO',
     deletedAt: null,
     createdAt: new Date(),

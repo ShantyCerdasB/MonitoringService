@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from 'react';
 import { webSocketService } from '@/shared/services/webSocket';
+import { WebSocketGroupRetryManager } from '@/shared/services/webSocket/managers';
 import { logDebug, logError } from '@/shared/utils/logger';
 import type { IUseStreamCommandHandlingOptions } from './types/useStreamCommandHandlingTypes';
 
@@ -27,6 +28,15 @@ export function useStreamCommandHandling({
 }: IUseStreamCommandHandlingOptions): void {
   const handlerRef = useRef<((message: unknown) => void) | null>(null);
   const processingRef = useRef<boolean>(false);
+  // Use refs to avoid recreating useEffect when callbacks change
+  const onStartCommandRef = useRef(onStartCommand);
+  const onStopCommandRef = useRef(onStopCommand);
+
+  // Keep refs in sync with latest callbacks
+  useEffect(() => {
+    onStartCommandRef.current = onStartCommand;
+    onStopCommandRef.current = onStopCommand;
+  }, [onStartCommand, onStopCommand]);
 
   useEffect(() => {
     if (!userEmail) {
@@ -48,8 +58,10 @@ export function useStreamCommandHandling({
         }
 
         const command = String(msg.command).trim().toUpperCase();
-        const messageEmail = msg.employeeEmail ? String(msg.employeeEmail).toLowerCase() : null;
-        const reason = msg.reason ? String(msg.reason) : undefined;
+        const employeeEmailValue = msg.employeeEmail;
+        const reasonValue = msg.reason;
+        const messageEmail = typeof employeeEmailValue === 'string' ? employeeEmailValue.toLowerCase() : null;
+        const reason = typeof reasonValue === 'string' ? reasonValue : undefined;
 
         // Filter by email if provided in message
         if (messageEmail && messageEmail !== userEmail.toLowerCase()) {
@@ -65,7 +77,7 @@ export function useStreamCommandHandling({
         if (command === 'START') {
           logDebug('[useStreamCommandHandling] Received START command', { userEmail });
           processingRef.current = true;
-          onStartCommand()
+          onStartCommandRef.current()
             .then(() => {
               logDebug('[useStreamCommandHandling] START command processed successfully');
             })
@@ -78,7 +90,7 @@ export function useStreamCommandHandling({
         } else if (command === 'STOP') {
           logDebug('[useStreamCommandHandling] Received STOP command', { userEmail, reason });
           processingRef.current = true;
-          onStopCommand(reason)
+          onStopCommandRef.current(reason)
             .then(() => {
               logDebug('[useStreamCommandHandling] STOP command processed successfully', { reason });
             })
@@ -90,7 +102,7 @@ export function useStreamCommandHandling({
             });
         } else if (command === 'REFRESH') {
           logDebug('[useStreamCommandHandling] Received REFRESH command, reloading page', { userEmail });
-          window.location.reload();
+          globalThis.location.reload();
         }
       } catch (error) {
         logError('[useStreamCommandHandling] Error handling message', { error, userEmail });
@@ -99,14 +111,21 @@ export function useStreamCommandHandling({
 
     handlerRef.current = handleMessage;
 
+    const groupRetryManager = new WebSocketGroupRetryManager();
+
     // Join commands group and subscribe to messages
     const initialize = async (): Promise<void> => {
       try {
-        // Join commands group (similar to admin-web useBootstrap)
-        await webSocketService.joinGroup(commandsGroup);
+        // Join commands group with retry logic
+        await groupRetryManager.joinGroupWithRetry(
+          commandsGroup,
+          () => webSocketService.joinGroup(commandsGroup),
+          () => webSocketService.isConnected()
+        );
         logDebug('[useStreamCommandHandling] Joined commands group', { group: commandsGroup });
       } catch (error) {
-        logError('[useStreamCommandHandling] Failed to join commands group', { error, group: commandsGroup });
+        logError('[useStreamCommandHandling] Failed to join commands group after retries', { error, group: commandsGroup });
+        // Page refresh already handled by retry manager for critical groups
       }
 
       // Subscribe to WebSocket messages
@@ -119,10 +138,15 @@ export function useStreamCommandHandling({
     // Rejoin group on reconnect
     unsubscribeConnected = webSocketService.onConnected(async () => {
       try {
-        await webSocketService.joinGroup(commandsGroup);
+        await groupRetryManager.joinGroupWithRetry(
+          commandsGroup,
+          () => webSocketService.joinGroup(commandsGroup),
+          () => webSocketService.isConnected()
+        );
         logDebug('[useStreamCommandHandling] Rejoined commands group on reconnect', { group: commandsGroup });
       } catch (error) {
-        logError('[useStreamCommandHandling] Failed to rejoin commands group on reconnect', { error, group: commandsGroup });
+        logError('[useStreamCommandHandling] Failed to rejoin commands group on reconnect after retries', { error, group: commandsGroup });
+        // Page refresh already handled by retry manager for critical groups
       }
     });
 
@@ -138,6 +162,6 @@ export function useStreamCommandHandling({
         // Ignore errors on cleanup
       });
     };
-  }, [userEmail, onStartCommand, onStopCommand]);
+  }, [userEmail]); // Only depend on userEmail - callbacks accessed via refs
 }
 

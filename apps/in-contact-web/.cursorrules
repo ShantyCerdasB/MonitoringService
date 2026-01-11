@@ -1,3 +1,4 @@
+@ -1,861 +0,0 @@
 # In-Contact-Web Frontend: Best Practices and Architecture Rules
 
 ## Architecture Pattern: Screaming Architecture
@@ -858,4 +859,3 @@ const stableFunction = useCallback(async () => {
   await loadUserInfo();
 }, []); // No dependencies - all via refs/getState()
 ```
-

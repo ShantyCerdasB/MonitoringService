@@ -8,10 +8,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { webSocketService } from '@/shared/services/webSocket';
+import { WebSocketGroupRetryManager } from '@/shared/services/webSocket/managers';
 import { fetchStreamingStatusBatch } from '../../api/streamingStatusBatchClient';
-import { StreamingStatus, StreamingStopReason } from '../../enums';
+import { StreamingStopReason } from '../../enums';
 import type { CredsMap, StreamCreds, StreamingStatusInfo } from '../../types';
-import { STOP_STATUS_FETCH_DELAY_MS, INIT_FETCH_DELAY_MS, PENDING_TIMEOUT_MS } from '../../constants';
+import { INIT_FETCH_DELAY_MS, PENDING_TIMEOUT_MS, START_CONNECTION_TIMEOUT_MS } from '../../constants';
 import { logDebug, logError, logWarn } from '@/shared/utils/logger';
 import {
   buildStatusMap,
@@ -44,6 +45,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
   const stopStatusTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // Track STOP status fetch timers
   const fetchingTokensRef = useRef<Set<string>>(new Set()); // Track emails currently fetching tokens to prevent duplicate calls
   const retryTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // Track retry timers for pending token fetches
+  const startConnectionTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // Track timeouts for pending -> started connection
   
   useEffect(() => {
     credsMapRef.current = credsMap;
@@ -151,6 +153,143 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
     }
   }, []);
 
+  const clearStartConnectionTimer = useCallback((email: string): void => {
+    const key = email.toLowerCase();
+    const timer = startConnectionTimersRef.current[key];
+    if (timer) {
+      clearTimeout(timer);
+      delete startConnectionTimersRef.current[key];
+    }
+  }, []);
+
+  // Factory function for attemptFetchWithRetry - creates recursive retry function
+  const createAttemptFetchWithRetry = useCallback((emailKey: string): (attempt?: number) => Promise<void> => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAYS = [500, 1000, 2000]; // Exponential backoff: 500ms, 1s, 2s
+    
+    const attemptFetchWithRetry = async (attempt: number = 0): Promise<void> => {
+      try {
+        const creds = await fetchCredentialsForEmail(emailKey);
+        if (creds) {
+          // Token fetched successfully - keep loading: true until 'started' message arrives
+          setCredsMap(prev => ({
+            ...prev,
+            [emailKey]: { ...creds, loading: true }
+          }));
+          logDebug('[useIsolatedStreams] Token fetched for pending status, keeping loading state', {
+            email: emailKey,
+            attempt,
+          });
+          clearRetryTimer(emailKey);
+          return;
+        }
+        
+        // Token not available yet (session not created)
+        if (attempt < MAX_RETRIES) {
+          const delay = RETRY_DELAYS[attempt] || RETRY_DELAYS.at(-1);
+          logDebug('[useIsolatedStreams] Token not available yet, scheduling retry', {
+            email: emailKey,
+            attempt: attempt + 1,
+            delayMs: delay,
+          });
+          
+          clearRetryTimer(emailKey);
+          retryTimersRef.current[emailKey] = setTimeout(() => {
+            delete retryTimersRef.current[emailKey];
+            attemptFetchWithRetry(attempt + 1).catch((err: unknown) => {
+              logError('[useIsolatedStreams] Error in attemptFetchWithRetry retry', { error: err, email: emailKey, attempt: attempt + 1 });
+            });
+          }, delay);
+        } else {
+          // Max retries reached, keep loading state and wait for 'started' message
+          logDebug('[useIsolatedStreams] Max retries reached, waiting for started status', {
+            email: emailKey,
+            attempt,
+          });
+          clearRetryTimer(emailKey);
+        }
+      } catch (error) {
+        logError('[useIsolatedStreams] Failed to fetch token for pending status', { error, email: emailKey, attempt });
+        clearRetryTimer(emailKey);
+        // Don't set loading to false yet - wait for 'started' message or timeout
+        if (attempt >= MAX_RETRIES) {
+          // Only set loading to false if we've exhausted retries and there's an error
+          setCredsMap(prev => {
+            const current = prev[emailKey];
+            if (!current) return prev;
+            return {
+              ...prev,
+              [emailKey]: { ...current, loading: false }
+            };
+          });
+        }
+      }
+    };
+    
+    return attemptFetchWithRetry;
+  }, [clearRetryTimer]);
+
+  // Handler for pending timeout
+  const handlePendingTimeout = useCallback((emailKey: string): void => {
+    const current = credsMapRef.current[emailKey];
+    // If we have token, just clear timer (no state update needed)
+    if (current?.accessToken) {
+      clearPendingTimer(emailKey);
+      return;
+    }
+    // Don't set loading to false on timeout - wait for 'started' or 'failed' message
+    // This prevents flickering when 'started' arrives right after timeout
+    logWarn('[useIsolatedStreams] Pending status timeout, but keeping loading state - waiting for started/failed message', { email: emailKey });
+    clearPendingTimer(emailKey);
+  }, [clearPendingTimer]);
+
+  // Handler for start connection timeout
+  const handleStartConnectionTimeout = useCallback((emailKey: string): void => {
+    setCredsMap(prev => {
+      const current = prev[emailKey];
+      if (!current) return prev;
+      
+      // Only set loading to false if we still don't have a token and are still loading
+      // This prevents race conditions if 'started' message arrives right after timeout
+      if (current.loading && !current.accessToken) {
+        logWarn('[useIsolatedStreams] Start connection timeout - no started message received within 15 seconds', { email: emailKey });
+        return {
+          ...prev,
+          [emailKey]: { ...current, loading: false }
+        };
+      }
+      return prev; // Already has token or not loading - no change needed
+    });
+  }, []);
+
+  // Handler for stop status timeout
+  const handleStopStatusTimeout = useCallback(async (emailKey: string): Promise<void> => {
+    try {
+      const currentCreds = credsMapRef.current?.[emailKey];
+      if (currentCreds?.statusInfo) {
+        logDebug('StatusInfo already set via event, skipping batch fetch', { email: emailKey });
+        delete stopStatusTimersRef.current[emailKey];
+        return;
+      }
+      
+      const resp = await fetchStreamingStatusBatch([emailKey]);
+      const map = buildStatusMap(resp.statuses);
+      const statusInfo = map[emailKey];
+      if (!statusInfo) {
+        delete stopStatusTimersRef.current[emailKey];
+        return;
+      }
+      setCredsMap(prev => ({
+        ...prev,
+        [emailKey]: { ...(prev[emailKey] ?? { loading: false }), statusInfo }
+      }));
+    } catch (error) {
+      logError('Failed to fetch status after STOP', { error, email: emailKey });
+    } finally {
+      delete stopStatusTimersRef.current[emailKey];
+    }
+  }, []);
+
   useEffect(() => {
     if (isInitializedRef.current || emails.length === 0) return;
     
@@ -188,7 +327,11 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
       }
     };
     
-    setTimeout(() => void fetchSessionsAndTokens(), INIT_FETCH_DELAY_MS);
+    setTimeout(() => {
+      fetchSessionsAndTokens().catch((err: unknown) => {
+        logError('[useIsolatedStreams] Error in fetchSessionsAndTokens', { error: err });
+      });
+    }, INIT_FETCH_DELAY_MS);
   }, [emails]);
 
   useEffect(() => {
@@ -242,37 +385,51 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
         }
       };
       
-      setTimeout(() => void fetchNewSessions(), INIT_FETCH_DELAY_MS);
+      setTimeout(() => {
+        fetchNewSessions().catch((err: unknown) => {
+          logError('[useIsolatedStreams] Error in fetchNewSessions', { error: err });
+        });
+      }, INIT_FETCH_DELAY_MS);
     }
     
     if (toLeave.length > 0) {
       toLeave.forEach(email => {
         clearPendingTimer(email);
         clearRetryTimer(email);
+        clearStartConnectionTimer(email);
         clearOne(email);
       });
     }
-  }, [emails, clearOne, clearPendingTimer, clearRetryTimer]);
+  }, [emails, clearOne, clearPendingTimer, clearRetryTimer, clearStartConnectionTimer]);
 
   useEffect(() => {
     const joinMissingGroups = async (): Promise<void> => {
       try {
         await webSocketService.connect(viewerEmail);
+        const groupRetryManager = new WebSocketGroupRetryManager();
         for (const email of emailsRef.current) {
           if (!joinedGroupsRef.current.has(email)) {
             try {
-              await webSocketService.joinGroup(email);
+              await groupRetryManager.joinGroupWithRetry(
+                email,
+                () => webSocketService.joinGroup(email),
+                () => webSocketService.isConnected()
+              );
               joinedGroupsRef.current.add(email);
-            } catch {
-              // Ignore join errors
+            } catch (error) {
+              logWarn('Failed to join PSO group after retries', { email, error });
+              // Non-critical group, continue with others
             }
           }
         }
       } catch (error) {
-        logWarn('Failed to join WebSocket groups', { error });
+        logWarn('Failed to connect WebSocket', { error });
+        // Connection retry handled by WebSocketService
       }
     };
-    void joinMissingGroups();
+    joinMissingGroups().catch((err: unknown) => {
+      logWarn('[useIsolatedStreams] Error in joinMissingGroups', { error: err });
+    });
   }, [viewerEmail, emails.join(',')]);
 
   useEffect(() => {
@@ -325,10 +482,10 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
       }
     };
     
-    window.addEventListener('streamingSessionUpdated', handleStreamingSessionUpdate as EventListener);
+    globalThis.addEventListener('streamingSessionUpdated', handleStreamingSessionUpdate as EventListener);
     
     return () => {
-      window.removeEventListener('streamingSessionUpdated', handleStreamingSessionUpdate as EventListener);
+      globalThis.removeEventListener('streamingSessionUpdated', handleStreamingSessionUpdate as EventListener);
     };
   }, [clearStopStatusTimer]);
 
@@ -351,6 +508,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
         const key = parsed.targetEmail;
         clearPendingTimer(key);
         clearRetryTimer(key); // Clear any existing retry timers
+        clearStartConnectionTimer(key); // Clear any existing start connection timer
         
         logDebug('[useIsolatedStreams] Received pending status, starting optimistic connection', {
           email: key,
@@ -364,93 +522,30 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
 
         // Optimistic connection: start fetching access token with retry logic
         // The first call might return null because session isn't created yet, so we retry with backoff
-        const attemptFetchWithRetry = async (attempt: number = 0): Promise<void> => {
-          const MAX_RETRIES = 3;
-          const RETRY_DELAYS = [500, 1000, 2000]; // Exponential backoff: 500ms, 1s, 2s
-          
-          try {
-            const creds = await fetchCredentialsForEmail(key);
-            if (creds) {
-              // Token fetched successfully - keep loading: true until 'started' message arrives
-              const currentCreds = credsMapRef.current[key] ?? {};
-              setCredsMap(prev => ({
-                ...prev,
-                [key]: { ...creds, loading: true }
-              }));
-              logDebug('[useIsolatedStreams] Token fetched for pending status, keeping loading state', {
-                email: key,
-                attempt,
-              });
-              clearRetryTimer(key);
-              return;
-            }
-            
-            // Token not available yet (session not created)
-            if (attempt < MAX_RETRIES) {
-              const delay = RETRY_DELAYS[attempt] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-              logDebug('[useIsolatedStreams] Token not available yet, scheduling retry', {
-                email: key,
-                attempt: attempt + 1,
-                delayMs: delay,
-              });
-              
-              clearRetryTimer(key);
-              retryTimersRef.current[key] = setTimeout(() => {
-                delete retryTimersRef.current[key];
-                void attemptFetchWithRetry(attempt + 1);
-              }, delay);
-            } else {
-              // Max retries reached, keep loading state and wait for 'started' message
-              logDebug('[useIsolatedStreams] Max retries reached, waiting for started status', {
-                email: key,
-                attempt,
-              });
-              clearRetryTimer(key);
-            }
-          } catch (error) {
-            logError('[useIsolatedStreams] Failed to fetch token for pending status', { error, email: key, attempt });
-            clearRetryTimer(key);
-            // Don't set loading to false yet - wait for 'started' message or timeout
-            if (attempt >= MAX_RETRIES) {
-              // Only set loading to false if we've exhausted retries and there's an error
-              setCredsMap(prev => {
-                const current = prev[key];
-                if (!current) return prev;
-                return {
-                  ...prev,
-                  [key]: { ...current, loading: false }
-                };
-              });
-            }
-          }
-        };
-        
-        void attemptFetchWithRetry();
+        const attemptFetchWithRetry = createAttemptFetchWithRetry(key);
+        attemptFetchWithRetry().catch((err: unknown) => {
+          logError('[useIsolatedStreams] Error in attemptFetchWithRetry', { error: err, email: key });
+        });
 
         // Fallback timeout if status never changes to 'started' and token fetch fails
         // Note: We don't set loading: false here because the 'started' message might arrive soon after.
         // Only the 'failed' message should set loading: false.
         pendingTimersRef.current[key] = setTimeout(() => {
-          setCredsMap(prev => {
-            const current = prev[key];
-            // If we have token, keep it (optimistic worked)
-            if (current?.accessToken) {
-              clearPendingTimer(key);
-              return prev; // Already connected, token available
-            }
-            // Don't set loading to false on timeout - wait for 'started' or 'failed' message
-            // This prevents flickering when 'started' arrives right after timeout
-            logWarn('[useIsolatedStreams] Pending status timeout, but keeping loading state - waiting for started/failed message', { email: key });
-            return prev; // Keep loading: true, wait for 'started' or 'failed' message
-          });
-          clearPendingTimer(key);
+          handlePendingTimeout(key);
         }, PENDING_TIMEOUT_MS);
+
+        // Set timeout: if 'started' message is not received within 15 seconds, set loading to false
+        startConnectionTimersRef.current[key] = setTimeout(() => {
+          delete startConnectionTimersRef.current[key];
+          handleStartConnectionTimeout(key);
+        }, START_CONNECTION_TIMEOUT_MS);
         return;
       }
 
       if (parsed.failed) {
         const key = parsed.targetEmail;
         clearPendingTimer(key);
+        clearStartConnectionTimer(key);
         setCredsMap(prev => {
           const current = prev[key] ?? {};
           return {
@@ -464,6 +559,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
       if (parsed.started === true) {
         clearPendingTimer(parsed.targetEmail);
         clearRetryTimer(parsed.targetEmail);
+        clearStartConnectionTimer(parsed.targetEmail);
         if (canceledUsersRef.current.has(parsed.targetEmail)) {
           const ns = new Set(canceledUsersRef.current);
           ns.delete(parsed.targetEmail);
@@ -472,9 +568,6 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
         
         const emailKey = parsed.targetEmail;
         clearStopStatusTimer(emailKey);
-        
-        // Check current state using ref to avoid unnecessary state updates
-        const currentCreds = credsMapRef.current[emailKey];
         
         if (fetchingTokensRef.current.has(emailKey)) {
           // Token fetch already in progress, wait for it to complete
@@ -511,6 +604,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
           return;
         }
         
+        const currentCreds = credsMapRef.current[emailKey];
         if (currentCreds?.accessToken) {
           // Token already available (from optimistic fetch or previous call), just update loading state if needed
           logDebug('[useIsolatedStreams] Token already available, updating loading state', {
@@ -533,7 +627,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
             [emailKey]: { ...(prev[emailKey] ?? {}), loading: true }
           }));
           
-          void refreshTokenForEmail(emailKey).catch((error) => {
+          refreshTokenForEmail(emailKey).catch((error: unknown) => {
             logError('[useIsolatedStreams] Failed to fetch token after started status', { error, email: emailKey });
             setCredsMap(prev => {
               const current = prev[emailKey];
@@ -548,6 +642,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
       } else if (parsed.started === false) {
         clearPendingTimer(parsed.targetEmail);
         clearStopStatusTimer(parsed.targetEmail);
+        clearStartConnectionTimer(parsed.targetEmail);
         
         const ns = new Set(canceledUsersRef.current);
         ns.add(parsed.targetEmail);
@@ -557,31 +652,10 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
         const emailKey = parsed.targetEmail;
         
         if (!stopStatusTimersRef.current[emailKey]) {
-          stopStatusTimersRef.current[emailKey] = setTimeout(async () => {
-            try {
-              const currentCreds = credsMapRef.current?.[emailKey];
-              if (currentCreds?.statusInfo) {
-                logDebug('StatusInfo already set via event, skipping batch fetch', { email: emailKey });
-                delete stopStatusTimersRef.current[emailKey];
-                return;
-              }
-              
-              const resp = await fetchStreamingStatusBatch([emailKey]);
-              const map = buildStatusMap(resp.statuses);
-              const statusInfo = map[emailKey];
-              if (!statusInfo) {
-                delete stopStatusTimersRef.current[emailKey];
-                return;
-              }
-              setCredsMap(prev => ({
-                ...prev,
-                [emailKey]: { ...(prev[emailKey] ?? { loading: false }), statusInfo }
-              }));
-            } catch (error) {
-              logError('Failed to fetch status after STOP', { error, email: emailKey });
-            } finally {
-              delete stopStatusTimersRef.current[emailKey];
-            }
+          stopStatusTimersRef.current[emailKey] = setTimeout(() => {
+            handleStopStatusTimeout(emailKey).catch((err: unknown) => {
+              logError('[useIsolatedStreams] Error in handleStopStatusTimeout', { error: err, email: emailKey });
+            });
           }, 1000);
         }
       }
@@ -594,7 +668,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
       unsubscribe();
       wsHandlerRegisteredRef.current = false;
     };
-  }, [viewerEmail, clearPendingTimer, clearStopStatusTimer, clearOne]);
+  }, [viewerEmail, clearPendingTimer, clearStopStatusTimer, clearOne, clearRetryTimer, clearStartConnectionTimer, createAttemptFetchWithRetry, handlePendingTimeout, handleStartConnectionTimeout, handleStopStatusTimeout, refreshTokenForEmail]);
 
   useEffect(() => {
     return () => {

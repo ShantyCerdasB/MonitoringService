@@ -37,7 +37,7 @@ export function TableComponent<T extends { id?: string }>(
     pageSize = 10,
     enableLocalSearch = false,
     searchPlaceholder = 'Search...',
-  }: ITableComponentProps<T>
+  }: Readonly<ITableComponentProps<T>>
 ): JSX.Element {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,7 +57,13 @@ export function TableComponent<T extends { id?: string }>(
           const cell = typeof col.key === 'string' 
             ? (row as Record<string, unknown>)[col.key]
             : row[col.key as keyof T];
-          return cell != null && String(cell).toLowerCase().includes(term);
+          
+          if (cell == null) {
+            return false;
+          }
+          
+          const cellValue = typeof cell === 'string' ? cell : (typeof cell === 'object' ? JSON.stringify(cell) : String(cell));
+          return cellValue.toLowerCase().includes(term);
         }
         return false;
       })
@@ -204,22 +210,56 @@ export function TableComponent<T extends { id?: string }>(
                         </div>
                       </td>
                     )}
-                    {columns.map((col, colIdx) => (
-                      <td
-                        key={`${String(col.key ?? col.header)}-${idx}-${colIdx}`}
-                        className={`${isModalMode ? 'px-0' : 'px-6'} py-4 text-sm text-white ${col.cellClassName || 'whitespace-nowrap'}`}
-                      >
-                        {col.render
-                          ? col.render(row)
-                          : col.key && typeof col.key !== 'string'
-                          ? String(row[col.key as keyof T] ?? '')
-                          : col.key &&
-                            typeof col.key === 'string' &&
-                            col.key in row
-                          ? String((row as Record<string, unknown>)[col.key] ?? '')
-                          : ''}
-                      </td>
-                    ))}
+                    {columns.map((col, colIdx) => {
+                      const renderCellContent = () => {
+                        if (col.render) {
+                          return col.render(row);
+                        }
+
+                        if (!col.key) {
+                          return '';
+                        }
+
+                        if (typeof col.key !== 'string') {
+                          const value = row[col.key as keyof T];
+                          if (value == null) {
+                            return '';
+                          }
+                          if (typeof value === 'string') {
+                            return value;
+                          }
+                          if (typeof value === 'object') {
+                            return JSON.stringify(value);
+                          }
+                          return String(value);
+                        }
+
+                        if (col.key in row) {
+                          const value = (row as Record<string, unknown>)[col.key];
+                          if (value == null) {
+                            return '';
+                          }
+                          if (typeof value === 'string') {
+                            return value;
+                          }
+                          if (typeof value === 'object') {
+                            return JSON.stringify(value);
+                          }
+                          return String(value);
+                        }
+
+                        return '';
+                      };
+
+                      return (
+                        <td
+                          key={`${String(col.key ?? col.header)}-${idx}-${colIdx}`}
+                          className={`${isModalMode ? 'px-0' : 'px-6'} py-4 text-sm text-white ${col.cellClassName || 'whitespace-nowrap'}`}
+                        >
+                          {renderCellContent()}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
@@ -241,7 +281,7 @@ export function TableComponent<T extends { id?: string }>(
 
       {/* Pagination - only show if local pagination is enabled */}
       {enableLocalPagination && (
-        <div className={`shrink-0 ${isModalMode ? 'px-6' : 'px-6'}`}>
+        <div className="shrink-0 px-6">
           <TablePagination
             currentPage={currentPage}
             totalPages={totalPages}

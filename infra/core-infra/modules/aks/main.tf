@@ -49,10 +49,7 @@ resource "azurerm_kubernetes_cluster" "aks-cluster" {
 resource "azurerm_kubernetes_cluster_node_pool" "livekit-pool" {
   name                  = "livekit"                               # Pool name
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks-cluster.id
-  vm_size               = var.vm_sku                      # VM SKU for LiveKit workloads
-  min_count             = 1                                       # Minimum nodes
-  max_count             = 3                                       # Maximum nodes
-  auto_scaling_enabled = true
+  auto_scaling_enabled = false
   vnet_subnet_id        = var.vnet_subnet_id
   mode                  = "User"                                  # User workloads
 

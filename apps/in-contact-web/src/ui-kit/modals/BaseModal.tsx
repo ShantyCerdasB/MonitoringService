@@ -135,9 +135,16 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
     <div 
       className="fixed inset-0 z-9999" 
       style={{ zIndex }}
+      role="dialog"
+      aria-modal="true"
       onClick={(e) => {
         // Close on overlay click (optional - can be removed if not desired)
         if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
           onClose();
         }
       }}
@@ -149,7 +156,17 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {customHeader ? (
-          <div onMouseDown={draggable ? handleMouseDown : undefined}>
+          <div 
+            role={draggable ? "button" : undefined}
+            tabIndex={draggable ? 0 : undefined}
+            aria-label={draggable ? "Drag to move modal" : undefined}
+            onMouseDown={draggable ? handleMouseDown : undefined}
+            onKeyDown={draggable ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+              }
+            } : undefined}
+          >
             {customHeader}
           </div>
         ) : null}

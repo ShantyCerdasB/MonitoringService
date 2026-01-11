@@ -107,7 +107,7 @@ const InnerAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
     // Immediately clear local state and go to login page
     setAccount(null);
-    window.location.href = '/login';
+    globalThis.location.href = '/login';
   };
 
   /**

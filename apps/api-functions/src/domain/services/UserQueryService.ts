@@ -14,7 +14,7 @@ import { UserSummary } from '../entities/UserSummary';
  * Domain service for user query operations
  */
 export class UserQueryService implements IUserQueryService {
-  constructor(private userRepository: IUserRepository) {}
+  constructor(private readonly userRepository: IUserRepository) {}
 
   /**
    * Finds users by roles with pagination
@@ -38,7 +38,7 @@ export class UserQueryService implements IUserQueryService {
 
     // 3. Remove duplicates based on azureAdObjectId
     const uniqueUsers = users.reduce((acc, user) => {
-      if (!acc.find(u => u.azureAdObjectId === user.azureAdObjectId)) {
+      if (!acc.some(u => u.azureAdObjectId === user.azureAdObjectId)) {
         acc.push(user);
       }
       return acc;

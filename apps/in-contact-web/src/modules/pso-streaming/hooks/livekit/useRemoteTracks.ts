@@ -128,6 +128,53 @@ export function useRemoteTracks(options: IUseRemoteTracksOptions): IUseRemoteTra
     participantSetup.clearAllSetups();
   }, [roomRef, targetIdentity, roomEventListeners, trackSubscriptions, trackAttachment, participantSetup]);
 
+  // Handler for reconnection check after room change
+  const handleReconnectionCheck = useCallback((): void => {
+    const room = roomRef.current;
+    if (room?.state !== 'connected') return;
+
+    const participant = Array.from(room.remoteParticipants.values()).find(
+      (p) => p.identity === targetIdentity
+    );
+
+    if (participant) {
+      for (const pub of participant.getTrackPublications().values()) {
+        if (pub.isSubscribed && pub.track && pub.trackSid) {
+          if (!trackAttachment.isTrackAttached(pub.trackSid)) {
+            logDebug('[useRemoteTracks] Found unattached track after reconnection', {
+              trackSid: pub.trackSid,
+              kind: pub.kind,
+            });
+            handleTrackReady(pub);
+          }
+        }
+      }
+    }
+  }, [roomRef, targetIdentity, trackAttachment, handleTrackReady]);
+
+  // Handler for fallback track check
+  const handleFallbackCheck = useCallback((): void => {
+    const room = roomRef.current;
+    if (room?.state === 'connected') {
+      const participant = Array.from(room.remoteParticipants.values()).find(
+        (p) => p.identity === targetIdentity
+      );
+
+      if (participant) {
+        const hasAttachedTracks = Array.from(participant.getTrackPublications().values()).some(
+          (pub) => pub.isSubscribed && pub.track && pub.trackSid && trackAttachment.isTrackAttached(pub.trackSid)
+        );
+
+        if (!hasAttachedTracks) {
+          logDebug('[useRemoteTracks] Fallback: No tracks attached, re-checking', {
+            identity: participant.identity,
+          });
+          participantSetup.setupParticipant(participant);
+        }
+      }
+    }
+  }, [roomRef, targetIdentity, trackAttachment, participantSetup]);
+
   // Main effect: setup room listeners and existing participants
   useEffect(() => {
     if (!targetIdentity) {
@@ -199,26 +246,7 @@ export function useRemoteTracks(options: IUseRemoteTracksOptions): IUseRemoteTra
 
         checkReconnectionTimeoutId = setTimeout(() => {
           checkReconnectionTimeoutId = null;
-          const room = roomRef.current;
-          if (!room || room.state !== 'connected') return;
-
-          const participant = Array.from(room.remoteParticipants.values()).find(
-            (p) => p.identity === targetIdentity
-          );
-
-          if (participant) {
-            for (const pub of participant.getTrackPublications().values()) {
-              if (pub.isSubscribed && pub.track && pub.trackSid) {
-                if (!trackAttachment.isTrackAttached(pub.trackSid)) {
-                  logDebug('[useRemoteTracks] Found unattached track after reconnection', {
-                    trackSid: pub.trackSid,
-                    kind: pub.kind,
-                  });
-                  handleTrackReady(pub);
-                }
-              }
-            }
-          }
+          handleReconnectionCheck();
         }, 500);
       }
 
@@ -228,25 +256,7 @@ export function useRemoteTracks(options: IUseRemoteTracksOptions): IUseRemoteTra
       }
 
       fallbackTimeoutId = setTimeout(() => {
-        const room = roomRef.current;
-        if (room?.state === 'connected') {
-          const participant = Array.from(room.remoteParticipants.values()).find(
-            (p) => p.identity === targetIdentity
-          );
-
-          if (participant) {
-            const hasAttachedTracks = Array.from(participant.getTrackPublications().values()).some(
-              (pub) => pub.isSubscribed && pub.track && pub.trackSid && trackAttachment.isTrackAttached(pub.trackSid)
-            );
-
-            if (!hasAttachedTracks) {
-              logDebug('[useRemoteTracks] Fallback: No tracks attached, re-checking', {
-                identity: participant.identity,
-              });
-              participantSetup.setupParticipant(participant);
-            }
-          }
-        }
+        handleFallbackCheck();
       }, 2000);
 
       return true;
@@ -282,7 +292,7 @@ export function useRemoteTracks(options: IUseRemoteTracksOptions): IUseRemoteTra
         clearTimeout(checkReconnectionTimeoutId);
       }
     };
-  }, [targetIdentity, isConnected, roomRef, trackAttachment, participantSetup, trackSubscriptions, roomEventListeners, handleTrackReady]);
+  }, [targetIdentity, isConnected, roomRef, trackAttachment, participantSetup, trackSubscriptions, roomEventListeners, handleTrackReady, handleReconnectionCheck, handleFallbackCheck, cleanup]);
 
   // Cleanup on unmount
   useEffect(() => {

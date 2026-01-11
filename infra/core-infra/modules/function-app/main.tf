@@ -60,7 +60,7 @@ resource "azurerm_function_app" "function_app" {
     LIVEKIT_API_URL             = var.livekit_api_url
     WEBPUBSUB_ENDPOINT          = var.webpubsub_endpoint
     SERVICE_BUS_TOPIC_NAME      = var.service_bus_topic_name
-    WEBPUBSUB_NAME              = var.webpubsub_hub_name
+    WEBPUBSUB_HUB               = var.webpubsub_hub
     NODE_ENV                    = var.node_env
     ADMINS_GROUP_ID              = var.admins_group_id
     EMPLOYEES_GROUP_ID          = var.employees_group_id
@@ -70,6 +70,7 @@ resource "azurerm_function_app" "function_app" {
     RECORDINGS_CONTAINER_NAME    = var.storage_account_recordings_container_name
     RECORDINGS_CONTAINER_URL     = var.storage_account_recordings_container_url
     AZURE_STORAGE_ACCOUNT = var.storage_account_name
+    AZURE_STORAGE_KEY = base64encode(var.storage_account_access_key)
     FUNCTIONS_EXTENSION_VERSION = "~4"
     WEBSITE_NODE_DEFAULT_VERSION = "~20"
     AZURE_STORAGE_CONNECTION_STRING = var.storage_account_connection_string

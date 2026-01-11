@@ -64,13 +64,14 @@ export class SupervisorRepository implements ISupervisorRepository {
   async findPsoByIdentifier(identifier: string): Promise<User | null> {
     try {
       // Try to find by ID first (UUID format)
-      if (identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.exec(identifier)) {
         const user = await this.findById(identifier);
         return user;
       }
 
       // Try to find by Azure AD Object ID
-      if (identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      if (uuidRegex.exec(identifier)) {
         const user = await prisma.user.findUnique({
           where: { azureAdObjectId: identifier }
         });
@@ -99,9 +100,10 @@ export class SupervisorRepository implements ISupervisorRepository {
   async findSupervisorByIdentifier(identifier: string): Promise<User | string> {
     try {
       // Try to find by ID first (UUID format)
-      if (identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.exec(identifier)) {
         const user = await this.findById(identifier);
-        if (user && user.isSupervisor()) {
+        if (user?.isSupervisor()) {
           return user;
         }
         if (user && !user.isSupervisor()) {
@@ -126,7 +128,7 @@ export class SupervisorRepository implements ISupervisorRepository {
       // Try to find by email
       if (identifier.includes('@')) {
         const user = await this.findByEmail(identifier);
-        if (user && user.isSupervisor()) {
+        if (user?.isSupervisor()) {
           return user;
         }
         if (user && !user.isSupervisor()) {

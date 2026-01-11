@@ -82,8 +82,8 @@ jobs:
         run: |
           set -euo pipefail
           az functionapp deployment source config-zip \
-            --resource-group livekit-agent-azure \
-            --name in-contact-serverless-api \
+            --resource-group in-contact-app \
+            --name in-contact-app-func-v2 \
             --src "./deploy.zip"
 
   migrations:

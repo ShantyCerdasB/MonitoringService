@@ -4,7 +4,7 @@
 
 # Prefix used for naming all resources.
 # Must be 3–24 lowercase alphanumeric, no special chars.
-name_prefix                    = "in-contact-app-prod"
+name_prefix                    = "in-contact-app"
 
 # Azure region where resources will be deployed (e.g. "eastus").
 region                         = "eastus"
@@ -54,7 +54,7 @@ redis_capacity                 = 0
 ########################################
 
 # Base name for your Azure AD application registrations.
-aad_app_name                   = "in-contact-app-develop"
+aad_app_name                   = "in-contact-app-prod"
 
 # Redirect URIs for your Single-Page App (list of strings).
 aad_redirect_uris              = [
@@ -73,7 +73,7 @@ aad_logout_uris                = [
 ]
 
 
-github_repo ="InContactApplication"
+github_repo = "your github repo, Example:SoftcialDev/InContactApplication"
 # Emails of users to assign the Admin role.
 aad_admins_group_members       = ["marco.vargas@collettehealth.com"]
 
@@ -105,10 +105,10 @@ tags = {
 ########################################
 
 # PostgreSQL administrator username (avoid special characters)
-postgres_admin_username        = "livekit"
+postgres_admin_username        = "your user"
 
 # PostgreSQL administrator password (store securely and rotate regularly)
-postgres_admin_password        = "ADcc2030.."
+postgres_admin_password        = "your secret password."
 
 # Major version of PostgreSQL to deploy
 postgres_version               = "16"
@@ -137,7 +137,7 @@ simple_storage_replication_type = "LRS"
 simple_storage_access_tier     = "Hot"
 
 # Name prefix for the storage account (3–24 lowercase alphanumeric, unique).
-storage_name_prefix            = "incontact-403"
+storage_name_prefix            = "incontact-412"
 
 ########################################
 # Function App (Consumption plan) settings
@@ -177,15 +177,15 @@ servicebus_auth_rule_name      = "sb-policy"
 
 # WebSocket endpoint URL for LiveKit signaling.
 # This must be a secure WebSocket (wss://) pointing to your LiveKit subdomain.
-livekit_url = "wss://livekit.mydomain.com"
+livekit_url = "wss://livekit.collettehealth.com"
 
 # API key for authenticating with LiveKit.
 # Create this in your LiveKit server or dashboard—name it as you like.
-livekit_api_key = "livekit"
+livekit_api_key = "1ujPOX29Xdx77OeTeAnKBlu80FTr9w8EAQwO"
 
 # API secret corresponding to your API key.
 # Store this securely (e.g., in a secrets manager), and never commit to source control.
-livekit_api_secret = "ADC2030."
+livekit_api_secret = "cDSC7QUh4NvGzK6kivsXVnGKX9KwhZPANJ0v"
 
 
 ########################################

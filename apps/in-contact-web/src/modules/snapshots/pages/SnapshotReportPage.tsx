@@ -14,6 +14,7 @@ import { useToast } from '@/ui-kit/feedback';
 import { DataTable } from '@/ui-kit/tables';
 import { ConfirmModal, PreviewModal } from '@/ui-kit/modals';
 import { logError } from '@/shared/utils/logger';
+import { useTableSelection } from '@/shared/hooks/useTableSelection';
 import { createSnapshotReportColumns } from './config/snapshotReportPageConfig';
 import type { SnapshotReport } from '../types/snapshotTypes';
 
@@ -112,35 +113,45 @@ export const SnapshotReportPage: React.FC = () => {
   }, [showToast]);
 
   // Selection config for checkboxes
-  const selection = useMemo(
-    () => ({
-      selectedKeys: selectedIds,
-      onToggleRow: (key: string, checked: boolean) => {
-        setSelectedIds((prev) =>
-          checked
-            ? Array.from(new Set([...prev, key]))
-            : prev.filter((k) => k !== key)
-        );
-      },
-      onToggleAll: (checked: boolean, keys: string[]) => {
-        setSelectedIds((prev) =>
-          checked
-            ? Array.from(new Set([...prev, ...keys]))
-            : prev.filter((k) => !keys.includes(k))
-        );
-      },
-      getRowKey: (row: SnapshotReport) => row.id,
-    }),
-    [selectedIds]
-  );
+  const selection = useTableSelection<SnapshotReport>({
+    selectedKeys: selectedIds,
+    setSelectedKeys: setSelectedIds,
+    getRowKey: (row: SnapshotReport) => row.id,
+  });
 
-  const columns = useMemo(
-    () => createSnapshotReportColumns({
+  // Create columns config
+  const columnsConfig = useMemo(
+    () => ({
       handleView,
       openDeleteModal,
       handleDownload,
     }),
     [handleView, openDeleteModal, handleDownload]
+  );
+
+  const columns = useMemo(
+    () => createSnapshotReportColumns(columnsConfig),
+    [columnsConfig]
+  );
+
+  // Create data fetch handler
+  const handleDataFetch = useCallback(async (limit: number, offset: number) => {
+    const paginated = reports.slice(offset, offset + limit);
+    return {
+      data: paginated,
+      total: reports.length,
+      count: paginated.length,
+    };
+  }, [reports]);
+
+  const dataLoader = useMemo(
+    () => ({
+      totalCount: reports.length,
+      onFetch: handleDataFetch,
+      initialFetchSize: 200,
+      fetchSize: 200,
+    }),
+    [reports.length, handleDataFetch]
   );
 
   return (
@@ -150,19 +161,7 @@ export const SnapshotReportPage: React.FC = () => {
           <DataTable<SnapshotReport>
             key={refreshKey}
             columns={columns}
-            dataLoader={{
-              totalCount: reports.length,
-              onFetch: async (limit: number, offset: number) => {
-                const paginated = reports.slice(offset, offset + limit);
-                return {
-                  data: paginated,
-                  total: reports.length,
-                  count: paginated.length,
-                };
-              },
-              initialFetchSize: 200,
-              fetchSize: 200,
-            }}
+            dataLoader={dataLoader}
             selection={selection}
             pageSize={10}
             externalLoading={loading || isDeleting}

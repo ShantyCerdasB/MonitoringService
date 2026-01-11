@@ -11,6 +11,12 @@ import type {
   CandidateUser,
   PsoItem,
 } from '../../types';
+import {
+  BASE_CANDIDATE_COLUMNS,
+  BASE_MAIN_COLUMNS_WITHOUT_ROLE,
+  SUPERVISOR_COLUMN,
+  ROLE_COLUMN,
+} from './sharedColumns';
 
 /**
  * Creates configuration for the PSO page
@@ -43,18 +49,11 @@ export function createPsoPageConfig(): UserManagementConfig<PsoItem> {
     },
     columns: {
       mainColumns: [
-        { key: 'email', header: 'Email' },
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'supervisorName', header: 'Supervisor' },
-        { key: 'role', header: 'Role' },
-      ] as Column<PsoItem>[],
-      candidateColumns: [
-        { key: 'email', header: 'Email' },
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'role', header: 'Role' },
-      ] as Column<CandidateUser>[],
+        ...(BASE_MAIN_COLUMNS_WITHOUT_ROLE as Column<PsoItem>[]),
+        SUPERVISOR_COLUMN as Column<PsoItem>,
+        ROLE_COLUMN as Column<PsoItem>,
+      ],
+      candidateColumns: BASE_CANDIDATE_COLUMNS,
     },
     features: {
       showRowCheckboxes: true,

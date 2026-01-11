@@ -4,7 +4,7 @@
  * @description Reusable component for Admin, SuperAdmin, Supervisor, PSO, and ContactManager pages
  */
 
-import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { DataTable, type Column } from '@/ui-kit/tables';
 import { TableComponent } from '@/ui-kit/tables';
 import { FormModal } from '@/ui-kit/modals';
@@ -55,7 +55,6 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
     handleRemove,
     isRemoving,
     setSelectedEmails,
-    refreshItems,
   } = hook;
 
 
@@ -230,7 +229,7 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
                 <AddButton label={config.ui.addButtonLabel} onClick={handleOpenModal} />
               )
             }
-            externalLoading={externalLoading === true ? true : (itemsLoading || isRemoving)}
+            externalLoading={externalLoading || itemsLoading || isRemoving}
             externalLoadingAction={
               externalLoading
                 ? 'Transferring PSOs...'

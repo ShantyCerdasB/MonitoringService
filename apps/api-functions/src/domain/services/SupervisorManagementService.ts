@@ -43,7 +43,7 @@ export class SupervisorManagementService implements ISupervisorManagementService
       const existing = await this.userRepository.findByEmail(email);
 
       // Skip if user already exists with non-PSO role
-      if (existing && existing.role && existing.role !== UserRole.PSO) {
+      if (existing?.role && existing.role !== UserRole.PSO) {
         skippedCount++;
         continue;
       }
@@ -195,12 +195,12 @@ export class SupervisorManagementService implements ISupervisorManagementService
     // Prepare all updates
     for (const email of userEmails) {
       const user = await this.userRepository.findByEmail(email);
-    if (user && user.isPSO()) {
+    if (user?.isPSO()) {
         // Only update if supervisor is actually changing
-        if (user.supervisorId !== supervisorId) {
-          updates.push({ email, supervisorId });
-        } else {
+        if (user.supervisorId === supervisorId) {
           skippedCount++;
+        } else {
+          updates.push({ email, supervisorId });
         }
       } else {
         skippedCount++;

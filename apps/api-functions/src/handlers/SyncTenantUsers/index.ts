@@ -28,7 +28,62 @@ function processDisplayName(displayName: string | undefined, email: string): str
   return displayName;
 }
 
+/**
+ * Checks if a graph user should be skipped
+ * @param graphUser - Graph user to check
+ * @returns True if user should be skipped
+ */
+function shouldSkipGraphUser(graphUser: { accountEnabled?: boolean; mail?: string; userPrincipalName?: string }): boolean {
+  if (graphUser.accountEnabled === false) {
+    return true;
+  }
 
+  const email = graphUser.mail ?? graphUser.userPrincipalName;
+  return !email;
+}
+
+/**
+ * Processes a single graph user (create or update)
+ * @param graphUser - Graph user to process
+ * @param normalizedEmail - Normalized email address
+ * @param processedDisplayName - Processed display name
+ * @returns Object with action performed ('created' | 'updated' | 'skipped')
+ */
+async function processGraphUser(
+  graphUser: { id: string },
+  normalizedEmail: string,
+  processedDisplayName: string
+): Promise<'created' | 'updated' | 'skipped'> {
+  const existingUser = await prisma.user.findUnique({
+    where: { email: normalizedEmail }
+  });
+
+  if (existingUser) {
+    if (existingUser.fullName !== processedDisplayName) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          fullName: processedDisplayName,
+          updatedAt: getCentralAmericaTime()
+        }
+      });
+      return 'updated';
+    }
+    return 'skipped';
+  }
+
+  await prisma.user.create({
+    data: {
+      azureAdObjectId: graphUser.id,
+      email: normalizedEmail,
+      fullName: processedDisplayName,
+      role: 'Unassigned',
+      createdAt: getCentralAmericaTime(),
+      updatedAt: getCentralAmericaTime()
+    }
+  });
+  return 'created';
+}
 
 async function syncTenantUsersHandler(ctx: Context, req: HttpRequest): Promise<void> {
   await withAuth(ctx, async () => {
@@ -55,49 +110,25 @@ async function syncTenantUsersHandler(ctx: Context, req: HttpRequest): Promise<v
 
       for (const graphUser of graphUsers) {
         try {
-          if (graphUser.accountEnabled === false) {
+          if (shouldSkipGraphUser(graphUser)) {
             skippedCount++;
             continue;
           }
 
           const email = graphUser.mail ?? graphUser.userPrincipalName;
-          if (!email) {
-            skippedCount++;
-            continue;
-          }
-
-          const normalizedEmail = normalizeEmail(email);
+          const normalizedEmail = normalizeEmail(email!);
           const processedDisplayName = processDisplayName(graphUser.displayName, normalizedEmail);
 
-          const existingUser = await prisma.user.findUnique({
-            where: { email: normalizedEmail }
-          });
-
-          if (existingUser) {
-            if (existingUser.fullName !== processedDisplayName) {
-              await prisma.user.update({
-                where: { id: existingUser.id },
-                data: {
-                  fullName: processedDisplayName,
-                  updatedAt: getCentralAmericaTime()
-                }
-              });
-              updatedCount++;
-              ctx.log.info(`[SyncTenantUsers] Updated user: ${normalizedEmail}`);
-            }
-          } else {
-            await prisma.user.create({
-              data: {
-                azureAdObjectId: graphUser.id,
-                email: normalizedEmail,
-                fullName: processedDisplayName,
-                role: 'Unassigned',
-                createdAt: getCentralAmericaTime(),
-                updatedAt: getCentralAmericaTime()
-              }
-            });
+          const action = await processGraphUser(graphUser, normalizedEmail, processedDisplayName);
+          
+          if (action === 'created') {
             createdCount++;
             ctx.log.info(`[SyncTenantUsers] Created user: ${normalizedEmail}`);
+          } else if (action === 'updated') {
+            updatedCount++;
+            ctx.log.info(`[SyncTenantUsers] Updated user: ${normalizedEmail}`);
+          } else {
+            skippedCount++;
           }
         } catch (userError: unknown) {
           const errorMessage = extractErrorMessage(userError);

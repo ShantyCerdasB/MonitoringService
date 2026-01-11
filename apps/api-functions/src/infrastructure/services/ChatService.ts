@@ -16,12 +16,10 @@ import { config } from '../../config';
 import { GraphChatMember } from '../../domain/types/GraphTypes';
 
 export class ChatService implements IChatService {
-  private tenantId = config.azureTenantId;
-  private clientId = config.azureClientId;
-  private clientSecret = config.azureClientSecret;
+  private readonly tenantId = config.azureTenantId;
+  private readonly clientId = config.azureClientId;
+  private readonly clientSecret = config.azureClientSecret;
   private readonly appScopes = ['https://graph.microsoft.com/.default'];
-
-  constructor() {}
 
   /**
    * Retrieves or creates a chat.
@@ -113,11 +111,11 @@ export class ChatService implements IChatService {
 
     let chatId: string;
 
-    if (!record) {
-      chatId = await this.createGraphChatWithClient(graph, desired, chatTopic);
-    } else {
+    if (record) {
       chatId = record.id;
       await this.syncChatMembersWithClient(graph, chatId, desired);
+    } else {
+      chatId = await this.createGraphChatWithClient(graph, desired, chatTopic);
     }
 
     await this.ensureChatRecordAndMembers(chatId, chatTopic, desired);
@@ -145,8 +143,6 @@ export class ChatService implements IChatService {
         `No users with roles [${roles.join(', ')}] found to compose the ${context} chat`
       );
     }
-
-    const participantsWithoutOid = participants.filter((user: any) => !user.azureAdObjectId);
 
     return participants
       .filter((user: any) => user.azureAdObjectId)
@@ -260,7 +256,7 @@ export class ChatService implements IChatService {
           },
         );
 
-        if (message.senderEmail) {
+        if (message.senderEmail && typeof message.senderEmail === 'string') {
           cardBody.push({
             type: 'TextBlock',
             text: `**Email:** ${message.senderEmail}`,
@@ -587,30 +583,24 @@ export class ChatService implements IChatService {
       where: { id: chatId }
     });
 
-    if (!existing) {
-      await prisma.chat.create({
-        data: {
-          id: chatId,
-          topic,
-          createdAt: getCentralAmericaTime(),
-          updatedAt: getCentralAmericaTime(),
-          members: {
-            create: participants.map((p) => ({
-              userId: p.userId,
-              joinedAt: getCentralAmericaTime()
-            }))
-          }
-        }
-      });
-    } else {
-      await prisma.chat.update({
-        where: { id: chatId },
-        data: {
-          topic,
-          updatedAt: getCentralAmericaTime()
-        }
-      });
+    if (existing) {
+      return;
     }
+
+    await prisma.chat.create({
+      data: {
+        id: chatId,
+        topic,
+        createdAt: getCentralAmericaTime(),
+        updatedAt: getCentralAmericaTime(),
+        members: {
+          create: participants.map((p) => ({
+            userId: p.userId,
+            joinedAt: getCentralAmericaTime()
+          }))
+        }
+      }
+    });
 
     await this.syncChatParticipantsInDb(chatId, participants);
   }
@@ -719,7 +709,7 @@ export class ChatService implements IChatService {
   private humanizeKey(key: string): string {
     return key
       .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
+      .replace(/^./, (str: string) => str.toUpperCase())
       .trim();
   }
 

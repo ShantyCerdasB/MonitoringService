@@ -140,9 +140,17 @@ export function SearchableDropdown<Value>({
           filtered.map(opt => (
             <div
               key={String(opt.value)}
+              role="button"
+              tabIndex={0}
               className={itemClassName}
               onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
               onClick={() => toggle(opt.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  toggle(opt.value);
+                }
+              }}
             >
               <div className="mr-5">
                 <TableCheckbox

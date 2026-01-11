@@ -5,10 +5,7 @@
  */
 
 import { UserRole } from '@/modules/auth/enums';
-import type {
-  ISupervisorChangeData,
-  ISupervisorListChangedMessage,
-} from '../../../types/supervisorTypes';
+import type { ISupervisorChangeData } from '../../../types/supervisorTypes';
 
 /**
  * Supervisor store state interface

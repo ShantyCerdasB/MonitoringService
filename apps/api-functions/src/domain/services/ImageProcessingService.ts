@@ -13,7 +13,7 @@ import { extractErrorMessage } from '../../utils/error/ErrorHelpers';
  * Domain service for image processing operations
  */
 export class ImageProcessingService {
-  constructor(private blobStorageService: IBlobStorageService) {}
+  constructor(private readonly blobStorageService: IBlobStorageService) {}
 
   /**
    * Processes and uploads an image

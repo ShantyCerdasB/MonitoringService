@@ -121,13 +121,9 @@ export class PresenceDomainService {
       // Fallback: try all methods in order
       user = await this.userRepository.findByAzureAdObjectId(key);
       
-      if (!user) {
-        user = await this.userRepository.findById(key);
-      }
+      user ??= await this.userRepository.findById(key);
       
-      if (!user) {
-        user = await this.userRepository.findByEmail(key);
-      }
+      user ??= await this.userRepository.findByEmail(key);
     }
 
     if (!user) {

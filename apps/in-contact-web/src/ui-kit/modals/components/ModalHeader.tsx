@@ -30,7 +30,15 @@ export const ModalHeader: React.FC<IModalHeaderProps> = ({
   onMouseDown,
 }) => (
   <div
+    role={draggable ? "button" : undefined}
+    tabIndex={draggable ? 0 : undefined}
+    aria-label={draggable ? "Drag to move modal" : undefined}
     onMouseDown={onMouseDown}
+    onKeyDown={draggable ? (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+      }
+    } : undefined}
     className={`
       flex items-center justify-between px-6 py-4
       ${draggable ? 'cursor-move' : ''}

@@ -4,7 +4,7 @@
  */
 
 import { ServiceBusClient, ServiceBusSender } from '@azure/service-bus';
-import { webPubSubClient } from './WebPubSubClient';
+import webPubSubClient from './WebPubSubClient';
 import { Command } from '../../domain/value-objects/Command';
 import { MessagingResult } from '../../domain/value-objects/MessagingResult';
 import { MessagingChannel } from '../../domain/enums/MessagingChannel';
@@ -42,7 +42,8 @@ export class CommandMessagingService implements ICommandMessagingService {
         await this.sendToServiceBus(command);
         return MessagingResult.serviceBusSuccess();
       } catch (busError) {
-        return MessagingResult.failure(MessagingChannel.ServiceBus, (busError as Error).message);
+        const errorMessage = busError instanceof Error ? busError.message : String(busError);
+        return MessagingResult.failure(MessagingChannel.ServiceBus, errorMessage);
       }
     }
   }

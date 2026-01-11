@@ -11,6 +11,7 @@ import type {
   UserManagementConfig,
   BaseUserManagementItem,
 } from '../../types';
+import { BASE_CANDIDATE_COLUMNS, BASE_MAIN_COLUMNS } from './sharedColumns';
 
 /**
  * Admin item type (same as UserByRole)
@@ -44,18 +45,8 @@ export function createAdminPageConfig(): UserManagementConfig<AdminItem> {
       removeErrorMessage: 'Failed to remove admin',
     },
     columns: {
-      mainColumns: [
-        { key: 'email', header: 'Email' },
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'role', header: 'Role' },
-      ] as Column<AdminItem>[],
-      candidateColumns: [
-        { key: 'email', header: 'Email' },
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'role', header: 'Role' },
-      ] as Column<UserByRole>[],
+      mainColumns: BASE_MAIN_COLUMNS as Column<AdminItem>[],
+      candidateColumns: BASE_CANDIDATE_COLUMNS as Column<UserByRole>[],
     },
   };
 }

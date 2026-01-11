@@ -31,7 +31,7 @@ import { FunctionNames } from '../../domain/constants/FunctionNames';
 const getSnapshotReasonsHandler: AzureFunction = withErrorHandler(
   async (ctx: Context) => {
     // Log request details BEFORE withAuth to see what we're receiving
-    const req = ctx.req as HttpRequest | undefined;
+    const req = ctx.req;
     ctx.log.info("[GetSnapshotReasons] Handler called", {
       hasCtxReq: !!ctx.req,
       hasReq: !!req,
@@ -64,7 +64,7 @@ const getSnapshotReasonsHandler: AzureFunction = withErrorHandler(
         serviceContainer.initialize();
         const errorLogService = serviceContainer.resolve<IErrorLogService>("ErrorLogService");
         const extendedCtx = ensureBindings(ctx);
-        const callerId = extendedCtx.bindings.callerId as string | undefined;
+        const callerId = extendedCtx.bindings.callerId;
 
         await errorLogService.logError({
           severity: ErrorSeverity.Medium,

@@ -16,6 +16,7 @@ spec:
       labels:
         app: redis
     spec:
+      automountServiceAccountToken: false
       volumes:
         - name: data
           emptyDir: {}
@@ -36,6 +37,13 @@ spec:
             value: "true"
           ports:
           - containerPort: 6379
+          resources:
+            limits:
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
+            requests:
+              memory: "256Mi"
+              ephemeral-storage: "512Mi"
           volumeMounts:
             - mountPath: /redis-master-data
               name: data
@@ -141,6 +149,7 @@ spec:
         app.kubernetes.io/name: livekit-server
         app.kubernetes.io/instance: livekit
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 18000 # 5 hours
       containers:
         - name: livekit-server
@@ -159,6 +168,7 @@ spec:
             limits:
               cpu: "2000m"
               memory: "2Gi"
+              ephemeral-storage: "2Gi"
           ports:
             - name: http
               containerPort: 7880
@@ -180,10 +190,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - livekit.xyzhub.pw
+        - livekit.collettehealth.com
       secretName: livekit-tls
   rules:
-    - host: livekit.xyzhub.pw
+    - host: livekit.collettehealth.com
       http:
         paths:
           - path: /
@@ -234,9 +244,9 @@ metadata:
   name: livekit-egress
 data:
   config.yaml: |
-    ws_url: wss://livekit.xyzhub.pw
-    api_key: access_token
-    api_secret: secret
+    ws_url: wss://livekit.collettehealth.com
+    api_key: 1ujPOX29Xdx77OeTeAnKBlu80FTr9w8EAQwOoken
+    api_secret: cDSC7QUh4NvGzK6kivsXVnGKX9KwhZPANJ0v
     redis:
       address: redis:6379
     azure:
@@ -258,6 +268,7 @@ spec:
       labels:
         app: livekit-egress
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: livekit-egress
           image: livekit/egress:latest
@@ -265,6 +276,23 @@ spec:
           env:
             - name: EGRESS_CONFIG_FILE
               value: /config/config.yaml
+            - name: AZURE_STORAGE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: livekit-blobstorage-secret
+                  key: AZURE_STORAGE_ACCOUNT
+            - name: AZURE_STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: livekit-blobstorage-secret
+                  key: AZURE_STORAGE_KEY
+          resources:
+            limits:
+              memory: "1Gi"
+              ephemeral-storage: "2Gi"
+            requests:
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
           securityContext:
             capabilities:
               add: ["SYS_ADMIN"]

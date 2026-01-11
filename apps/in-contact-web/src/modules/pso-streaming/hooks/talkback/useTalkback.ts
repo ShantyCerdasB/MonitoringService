@@ -7,7 +7,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
 import type { Room } from 'livekit-client';
 import { LocalAudioTrack } from 'livekit-client';
 import { TalkSessionClient } from '../../api/talkSessionClient';
@@ -38,7 +37,7 @@ import type { IUseTalkbackOptions, IUseTalkbackReturn } from './types';
 export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
   const { roomRef, psoEmail, stopOnUnpublish = true } = options;
   const { getApiToken } = useAuth();
-  const { registerSession, unregisterSession } = useTalkSessionGuardStore();
+  const { registerSession, unregisterSession, hasActiveSessions, getActiveSessionEmails } = useTalkSessionGuardStore();
 
   const [isTalking, setIsTalking] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,7 +83,9 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
     setIsCountdownActive(false);
 
     if (talkSessionIdRef.current && psoEmail) {
-      void stopTalkSession(TalkStopReason.USER_STOP);
+      stopTalkSession(TalkStopReason.USER_STOP).catch((err) => {
+        logError('[useTalkback] Error stopping talk session in cancel', { error: err });
+      });
     }
   }, [psoEmail, stopTalkSession]);
 
@@ -116,10 +117,15 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
     localTrackRef.current = track;
     setIsTalking(true);
 
-    // Register session in guard store for navigation blocking
-    // This allows navigation blocking when there's an active talk session
+    // Update session in guard store with final stop function that includes track cleanup
+    // The session was already registered in start() before countdown, now we update it
     if (psoEmail) {
       const stopFunction = async (): Promise<void> => {
+        // Cancel countdown if active
+        if (cancelCountdownRef.current) {
+          cancelCountdownRef.current();
+          cancelCountdownRef.current = null;
+        }
         // Stop the talk session with USER_STOP reason when navigating away
         await stopTalkSession(TalkStopReason.USER_STOP);
         // Cleanup local track
@@ -128,11 +134,13 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
           localTrackRef.current = null;
         }
         setIsTalking(false);
+        setIsCountdownActive(false);
+        setCountdown(null);
         // Unregister from guard store after stopping
         unregisterSession(psoEmail);
       };
-      registerSession(psoEmail, stopFunction);
-      logDebug('[useTalkback] Registered session in guard store', { email: psoEmail });
+      registerSession(psoEmail, stopFunction); // Update the stop function with track cleanup
+      logDebug('[useTalkback] Updated session in guard store with track cleanup', { email: psoEmail });
     }
   }, [psoEmail, stopTalkSession, registerSession, unregisterSession, roomRef, stopOnUnpublish]);
 
@@ -159,11 +167,47 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
       return;
     }
 
+    // Check if admin already has an active talk session (only one session per admin)
+    if (hasActiveSessions()) {
+      const activeEmails = getActiveSessionEmails();
+      const activeEmail = activeEmails[0];
+      logDebug('[useTalkback] Admin already has an active talk session', { activeEmail, psoEmail });
+      throw new Error(
+        `You already have an active talk session with ${activeEmail}. Please end the current session before starting a new one.`
+      );
+    }
+
     setLoading(true);
 
     try {
       const room = await waitForRoomConnection(() => roomRef.current);
       await startTalkSession();
+
+      // Register session in guard store for navigation blocking (including during countdown)
+      // This allows navigation blocking from the start, even before microphone is published
+      if (psoEmail) {
+        const stopFunction = async (): Promise<void> => {
+          // Cancel countdown if active
+          if (cancelCountdownRef.current) {
+            cancelCountdownRef.current();
+            cancelCountdownRef.current = null;
+          }
+          // Stop the talk session with USER_STOP reason when navigating away
+          await stopTalkSession(TalkStopReason.USER_STOP);
+          // Cleanup local track if it exists (may not exist yet if countdown hasn't completed)
+          if (localTrackRef.current) {
+            cleanupMicrophoneTrack(roomRef.current, localTrackRef.current, stopOnUnpublish);
+            localTrackRef.current = null;
+          }
+          setIsTalking(false);
+          setIsCountdownActive(false);
+          setCountdown(null);
+          // Unregister from guard store after stopping
+          unregisterSession(psoEmail);
+        };
+        registerSession(psoEmail, stopFunction);
+        logDebug('[useTalkback] Registered session in guard store (during countdown)', { email: psoEmail });
+      }
 
       setIsCountdownActive(true);
 
@@ -199,6 +243,14 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
     handleMicrophonePublished,
     handleMicrophonePublishError,
     cancel,
+    psoEmail,
+    registerSession,
+    unregisterSession,
+    stopTalkSession,
+    roomRef,
+    stopOnUnpublish,
+    hasActiveSessions,
+    getActiveSessionEmails,
   ]);
 
   /**
@@ -248,7 +300,9 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
       }
 
       if (talkSessionIdRef.current) {
-        void stopTalkSession(TalkStopReason.BROWSER_REFRESH);
+        stopTalkSession(TalkStopReason.BROWSER_REFRESH).catch((err) => {
+          logError('[useTalkback] Error stopping talk session on unmount', { error: err });
+        });
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,11 +314,13 @@ export function useTalkback(options: IUseTalkbackOptions): IUseTalkbackReturn {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (talkSessionIdRef.current) {
-        void talkSessionClientRef.current.sendBeaconStop(
+        talkSessionClientRef.current.sendBeaconStop(
           talkSessionIdRef.current,
           TalkStopReason.BROWSER_REFRESH,
           getApiToken
-        );
+        ).catch((err) => {
+          logError('[useTalkback] Error sending beacon stop on beforeunload', { error: err });
+        });
       }
     };
 

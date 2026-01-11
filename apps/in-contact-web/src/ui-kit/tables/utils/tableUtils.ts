@@ -47,10 +47,12 @@ export function filterTableData<T>(
         ? (row as Record<string, unknown>)[col.key]
         : row[col.key as keyof T];
 
-      return (
-        cell != null &&
-        String(cell).toLowerCase().includes(normalizedTerm)
-      );
+      if (cell == null) {
+        return false;
+      }
+      
+      const cellValue = typeof cell === 'string' ? cell : (typeof cell === 'object' ? JSON.stringify(cell) : String(cell));
+      return cellValue.toLowerCase().includes(normalizedTerm);
     })
   );
 }

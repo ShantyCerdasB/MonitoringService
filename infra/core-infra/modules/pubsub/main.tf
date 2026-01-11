@@ -2,7 +2,7 @@
 resource "azurerm_web_pubsub" "web_pubsub" {
   # The base name for this Web PubSub instance, suffixed with "-pubsub"
   # It ensures uniqueness by pulling from the variable `name`
-  name                = "${var.name}-pubsub"
+  name                = "${var.name}-pubsub-prod"
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = var.sku

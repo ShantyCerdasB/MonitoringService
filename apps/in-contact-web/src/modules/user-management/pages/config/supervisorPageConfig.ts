@@ -12,6 +12,7 @@ import type {
   BaseUserManagementItem,
   CandidateUser,
 } from '../../types';
+import { BASE_CANDIDATE_COLUMNS, BASE_MAIN_COLUMNS } from './sharedColumns';
 
 /**
  * Supervisor item type (same as UserByRole)
@@ -45,18 +46,8 @@ export function createSupervisorPageConfig(): UserManagementConfig<SupervisorIte
       removeErrorMessage: 'Failed to remove supervisor',
     },
     columns: {
-      mainColumns: [
-        { key: 'email', header: 'Email' },
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'role', header: 'Role' },
-      ] as Column<SupervisorItem>[],
-      candidateColumns: [
-        { key: 'email', header: 'Email' },
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'role', header: 'Role' },
-      ] as Column<CandidateUser>[],
+      mainColumns: BASE_MAIN_COLUMNS as Column<SupervisorItem>[],
+      candidateColumns: BASE_CANDIDATE_COLUMNS,
     },
     features: {
       transferButton: true, // Enable Transfer PSOs button per row

@@ -10,7 +10,6 @@ import { IUserRepository } from '../interfaces/IUserRepository';
 import { ErrorSeverity } from '../enums/ErrorSeverity';
 import { ErrorSource } from '../enums/ErrorSource';
 import { ServiceContainer } from '../../infrastructure/container/ServiceContainer';
-import { getCentralAmericaTime } from '../../utils/dateUtils';
 
 /**
  * Domain service for error logging business logic
