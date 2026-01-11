@@ -1,8 +1,0 @@
-{
-  "files": [],
-  "references": [
-    { "path": "apps/admin-web" },
-   // { "path": "apps/api-functions" },
-  //  { "path": "apps/electron-app" }
-  ]
-}

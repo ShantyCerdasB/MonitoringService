@@ -1,0 +1,189 @@
+name: Deploy API Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/api-functions/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+env:
+  FUNC_SRC: apps/api-functions
+  NODE_VER: '20.x'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    name: 1 - Build and Package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VER }}
+          cache: npm
+          cache-dependency-path: ${{ env.FUNC_SRC }}/package-lock.json
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ env.FUNC_SRC }}"
+          npm ci
+
+      - name: Generate Prisma client
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ env.FUNC_SRC }}"
+          npm run prisma:generate
+
+      - name: Build and Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ env.FUNC_SRC }}"
+          npm run build:deploy
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: function-zip
+          path: deploy.zip
+
+  deploy:
+    name: 2 - Deploy to Azure Functions
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: function-zip
+          path: .
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_API_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy ZIP to Azure Function App
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip \
+            --resource-group livekit-agent-azure \
+            --name in-contact-serverless-api \
+            --src "./deploy.zip"
+
+  migrations:
+    name: 3 - Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_API_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run Database Migrations
+        shell: bash
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          API_SCOPE_URI: ${{ secrets.VITE_AZURE_AD_API_SCOPE_URI }}
+        run: |
+          set -euo pipefail
+          
+          APP_ID_URI="${API_SCOPE_URI%/access_as_user}"
+          
+          TOKEN=$(az account get-access-token \
+            --resource "$APP_ID_URI" \
+            --query accessToken -o tsv)
+          
+          if [ -z "$TOKEN" ]; then
+            echo "Error: Failed to obtain Azure AD token"
+            exit 1
+          fi
+          
+          MIGRATION_URL="${API_URL}/api/RunMigrations"
+          
+          RESPONSE=$(curl -X POST \
+            "$MIGRATION_URL" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            -w "\n%{http_code}" \
+            -s)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: Migration failed with HTTP $HTTP_CODE"
+            echo "$RESPONSE" | sed '$d'
+            exit 1
+          fi
+
+  sync-tenant-users:
+    name: 4 - Sync Tenant Users
+    runs-on: ubuntu-latest
+    needs: migrations
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_API_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync Tenant Users
+        shell: bash
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          API_SCOPE_URI: ${{ secrets.VITE_AZURE_AD_API_SCOPE_URI }}
+        run: |
+          set -euo pipefail
+          
+          APP_ID_URI="${API_SCOPE_URI%/access_as_user}"
+          
+          TOKEN=$(az account get-access-token \
+            --resource "$APP_ID_URI" \
+            --query accessToken -o tsv)
+          
+          if [ -z "$TOKEN" ]; then
+            echo "Error: Failed to obtain Azure AD token"
+            exit 1
+          fi
+          
+          SYNC_URL="${API_URL}/api/SyncTenantUsers"
+          
+          RESPONSE=$(curl -X POST \
+            "$SYNC_URL" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            -w "\n%{http_code}" \
+            -s)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: Sync tenant users failed with HTTP $HTTP_CODE"
+            echo "$RESPONSE" | sed '$d'
+            exit 1
+          fi
