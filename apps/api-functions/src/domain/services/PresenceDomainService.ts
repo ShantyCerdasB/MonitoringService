@@ -114,9 +114,7 @@ export class PresenceDomainService {
       // If it's a UUID, try Azure AD Object ID first, then database ID
       user = await this.userRepository.findByAzureAdObjectId(key);
       
-      if (!user) {
-        user = await this.userRepository.findById(key);
-      }
+      user ??= await this.userRepository.findById(key);
     } else {
       // Fallback: try all methods in order
       user = await this.userRepository.findByAzureAdObjectId(key);

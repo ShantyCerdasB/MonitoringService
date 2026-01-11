@@ -39,6 +39,7 @@ export function startCountdown(
     try {
       await callbacks.onComplete();
     } catch (error) {
+      // Re-throw error to allow caller to handle it
       throw error;
     }
   }, COUNTDOWN_DURATION_MS);

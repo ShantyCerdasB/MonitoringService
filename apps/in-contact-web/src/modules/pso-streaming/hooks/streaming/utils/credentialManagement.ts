@@ -7,7 +7,7 @@
 import { getLiveKitToken } from '../../../api/livekitClient';
 import { fetchStreamingSessions } from '../../../api/streamingStatusClient';
 import { fetchStreamingStatusBatch } from '../../../api/streamingStatusBatchClient';
-import type { RoomWithToken, StreamingStatusBatchResponse } from '../../../api/types';
+import type { StreamingStatusBatchResponse } from '../../../api/types';
 import type { CredsMap, StreamCreds, StreamingStatusInfo } from '../../../types';
 import { buildStatusMap, buildEmailToRoomMap, buildRoomToTokenMap } from './streamStatusHelpers';
 

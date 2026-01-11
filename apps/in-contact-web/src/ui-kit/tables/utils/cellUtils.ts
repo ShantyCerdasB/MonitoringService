@@ -27,7 +27,11 @@ export function formatCellValue(value: unknown): string {
     return value;
   }
   if (typeof value === 'object') {
-    return JSON.stringify(value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
   }
   return String(value);
 }
@@ -48,7 +52,7 @@ export function getCellValue<T>(row: T, col: IColumn<T>): unknown {
   }
 
   if (typeof col.key !== 'string') {
-    return row[col.key as keyof T];
+    return row[col.key];
   }
 
   if (col.key in (row as Record<string, unknown>)) {

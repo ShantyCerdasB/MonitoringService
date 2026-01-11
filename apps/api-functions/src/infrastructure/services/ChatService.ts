@@ -191,37 +191,46 @@ export class ChatService implements IChatService {
    */
   private buildSnapshotReportCardBody(message: Record<string, unknown>): any[] {
     const cardBody: any[] = [];
+    const items: any[] = [];
 
     if (message.psoEmail) {
-      cardBody.push({
+      const emailStr = typeof message.psoEmail === 'string' ? message.psoEmail : String(message.psoEmail);
+      items.push({
         type: 'TextBlock',
-        text: `**Email:** ${message.psoEmail}`,
+        text: `**Email:** ${emailStr}`,
         wrap: true
       });
     }
 
     if (message.capturedAt) {
-      cardBody.push({
+      const capturedAtStr = typeof message.capturedAt === 'string' ? message.capturedAt : String(message.capturedAt);
+      items.push({
         type: 'TextBlock',
-        text: `**Captured At (Central Time):** ${message.capturedAt}`,
+        text: `**Captured At (Central Time):** ${capturedAtStr}`,
         wrap: true
       });
     }
 
     if (message.capturedBy) {
-      cardBody.push({
+      const capturedByStr = typeof message.capturedBy === 'string' ? message.capturedBy : String(message.capturedBy);
+      items.push({
         type: 'TextBlock',
-        text: `**Captured By:** ${message.capturedBy}`,
+        text: `**Captured By:** ${capturedByStr}`,
         wrap: true
       });
     }
 
     if (message.reason) {
-      cardBody.push({
+      const reasonStr = typeof message.reason === 'string' ? message.reason : String(message.reason);
+      items.push({
         type: 'TextBlock',
-        text: `**Reason:** ${message.reason}`,
+        text: `**Reason:** ${reasonStr}`,
         wrap: true
       });
+    }
+
+    if (items.length > 0) {
+      cardBody.push(...items);
     }
 
     if (message.imageUrl && typeof message.imageUrl === 'string') {
@@ -291,6 +300,7 @@ export class ChatService implements IChatService {
     ];
 
     if (messageType === 'snapshotReport') {
+      const psoNameStr = typeof message.psoName === 'string' ? message.psoName : (message.psoName == null ? 'Unknown' : String(message.psoName));
       cardBody.push(
         {
           type: 'TextBlock',
@@ -299,18 +309,20 @@ export class ChatService implements IChatService {
         },
         {
           type: 'TextBlock',
-          text: `**PSO:** ${message.psoName ?? 'Unknown'}`,
+          text: `**PSO:** ${psoNameStr}`,
           wrap: true
-        }
+        },
+        ...this.buildSnapshotReportCardBody(message)
       );
-      cardBody.push(...this.buildSnapshotReportCardBody(message));
     } else {
-      cardBody.push({
-        type: 'TextBlock',
-        text: `**PSO** **${message.senderName}** has submitted the following report:`,
-        wrap: true
-      });
-      cardBody.push(...this.buildFormReportCardBody(message));
+      cardBody.push(
+        {
+          type: 'TextBlock',
+          text: `**PSO** **${message.senderName}** has submitted the following report:`,
+          wrap: true
+        },
+        ...this.buildFormReportCardBody(message)
+      );
     }
 
     return cardBody;
@@ -655,7 +667,7 @@ export class ChatService implements IChatService {
     }
 
     const [p1, p2] = participants;
-    const participantIds = [p1.userId, p2.userId].sort();
+    const participantIds = [p1.userId, p2.userId].sort((a, b) => a.localeCompare(b));
 
     // Check for existing chat
     const existingChat = await prisma.chat.findFirst({

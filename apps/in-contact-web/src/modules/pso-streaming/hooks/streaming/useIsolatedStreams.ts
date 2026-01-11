@@ -6,9 +6,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { logDebug, logError, logWarn } from '@/shared/utils/logger';
-import { fetchCredentialsForEmail } from './utils';
+import { fetchCredentialsForEmail, buildStatusMap } from './utils';
 import { fetchStreamingStatusBatch } from '../../api/streamingStatusBatchClient';
-import { buildStatusMap } from './utils';
 import type { CredsMap, StreamCreds, StreamingStatusInfo } from '../../types';
 import { useStreamWebSocketMessages } from './useStreamWebSocketMessages';
 import { useStreamTimers } from './useStreamTimers';
@@ -151,6 +150,28 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
   }, []);
 
   /**
+   * Schedules a retry attempt with exponential backoff
+   * @param emailKey - Email key to retry for
+   * @param nextAttempt - Next attempt number
+   * @param delay - Delay in milliseconds
+   * @param retryFn - Function to call on retry
+   */
+  const scheduleRetryAttempt = useCallback((
+    emailKey: string,
+    nextAttempt: number,
+    delay: number,
+    retryFn: () => Promise<void>
+  ): void => {
+    clearRetryTimer(emailKey);
+    retryTimersRef.current[emailKey] = setTimeout(() => {
+      delete retryTimersRef.current[emailKey];
+      retryFn().catch((err: unknown) => {
+        handleRetryError(err, emailKey, nextAttempt);
+      });
+    }, delay);
+  }, [clearRetryTimer, handleRetryError]);
+
+  /**
    * Creates a retry function for fetching credentials with exponential backoff
    * @param emailKey - Email key to fetch credentials for
    * @returns Function that attempts to fetch credentials with retry logic
@@ -159,7 +180,8 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
     const MAX_RETRIES = 3;
     const RETRY_DELAYS = [500, 1000, 2000]; // Exponential backoff: 500ms, 1s, 2s
     
-    const attemptFetchWithRetry = async (attempt: number = 0): Promise<void> => {
+    const attemptFetchWithRetry = async (attempt?: number): Promise<void> => {
+      const currentAttempt = attempt ?? 0;
       try {
         const creds = await fetchCredentialsForEmail(emailKey);
         if (creds) {
@@ -169,48 +191,42 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
           }));
           logDebug('[useIsolatedStreams] Token fetched for pending status, keeping loading state', {
             email: emailKey,
-            attempt,
+            attempt: currentAttempt,
           });
           clearRetryTimer(emailKey);
           return;
         }
         
-        if (attempt < MAX_RETRIES) {
-          const delay = RETRY_DELAYS[attempt] || RETRY_DELAYS.at(-1);
+        if (currentAttempt < MAX_RETRIES) {
+          const delay: number = RETRY_DELAYS[currentAttempt] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1] ?? 2000;
           logDebug('[useIsolatedStreams] Token not available yet, scheduling retry', {
             email: emailKey,
-            attempt: attempt + 1,
+            attempt: currentAttempt + 1,
             delayMs: delay,
           });
           
-          clearRetryTimer(emailKey);
-          const scheduleRetry = (): void => {
-            retryTimersRef.current[emailKey] = setTimeout(() => {
-              delete retryTimersRef.current[emailKey];
-              attemptFetchWithRetry(attempt + 1).catch((err: unknown) => {
-                handleRetryError(err, emailKey, attempt + 1);
-              });
-            }, delay);
-          };
-          scheduleRetry();
+          const nextAttemptNumber = currentAttempt + 1;
+          scheduleRetryAttempt(emailKey, nextAttemptNumber, delay, async () => {
+            await attemptFetchWithRetry(nextAttemptNumber);
+          });
         } else {
           logDebug('[useIsolatedStreams] Max retries reached, waiting for started status', {
             email: emailKey,
-            attempt,
+            attempt: currentAttempt,
           });
           clearRetryTimer(emailKey);
         }
       } catch (error) {
-        logError('[useIsolatedStreams] Failed to fetch token for pending status', { error, email: emailKey, attempt });
+        logError('[useIsolatedStreams] Failed to fetch token for pending status', { error, email: emailKey, attempt: currentAttempt });
         clearRetryTimer(emailKey);
-        if (attempt >= MAX_RETRIES) {
+        if (currentAttempt >= MAX_RETRIES) {
           setLoadingFalseAfterMaxRetries(emailKey);
         }
       }
     };
     
     return attemptFetchWithRetry;
-  }, [clearRetryTimer, handleRetryError, setLoadingFalseAfterMaxRetries]);
+  }, [clearRetryTimer, handleRetryError, setLoadingFalseAfterMaxRetries, scheduleRetryAttempt]);
 
   /**
    * Handles pending timeout

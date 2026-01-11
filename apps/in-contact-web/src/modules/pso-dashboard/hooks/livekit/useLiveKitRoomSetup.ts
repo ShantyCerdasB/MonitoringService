@@ -132,8 +132,7 @@ function attachParticipantAudio(
 
   // New audio subscriptions
   participant.on(ParticipantEvent.TrackSubscribed, (track) => {
-    const kind = (track as any)?.kind;
-    if (kind === 'audio' && audioElement) {
+    if (track.kind === 'audio' && audioElement) {
       (track as RemoteAudioTrack).attach(audioElement);
       audioElement.muted = false;
       audioElement.play?.().catch(() => {});
@@ -142,8 +141,7 @@ function attachParticipantAudio(
 
   // Audio unsubscriptions
   participant.on(ParticipantEvent.TrackUnsubscribed, (track) => {
-    const kind = (track as any)?.kind;
-    if (kind === 'audio' && audioElement) {
+    if (track.kind === 'audio' && audioElement) {
       try {
         (track as RemoteAudioTrack).detach(audioElement);
       } catch {

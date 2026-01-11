@@ -161,32 +161,30 @@ async function createWindow(startUrl) {
 }
 
 
-(async () => {
-  await app.whenReady();
-  attachFileLogger(); // enable file logging
-  log('App ready. isPackaged=', app.isPackaged, 'NODE_ENV=', process.env.NODE_ENV || '(unset)');
-  log('Paths:', 'resourcesPath=', process.resourcesPath, 'userData=', app.getPath('userData'));
+await app.whenReady();
+attachFileLogger(); // enable file logging
+log('App ready. isPackaged=', app.isPackaged, 'NODE_ENV=', process.env.NODE_ENV || '(unset)');
+log('Paths:', 'resourcesPath=', process.resourcesPath, 'userData=', app.getPath('userData'));
 
-  // Auto-start on login (non-service)
-  if (process.platform === 'win32' && !process.argv.includes('--hidden')) {
-    app.setLoginItemSettings({ openAtLogin: true, path: process.execPath, args: ['--hidden'] });
-    log('LoginItemSettings set (openAtLogin=true)');
-  }
+// Auto-start on login (non-service)
+if (process.platform === 'win32' && !process.argv.includes('--hidden')) {
+  app.setLoginItemSettings({ openAtLogin: true, path: process.execPath, args: ['--hidden'] });
+  log('LoginItemSettings set (openAtLogin=true)');
+}
 
-  let startUrl;
-  if (!REMOTE_URL) {
-    const html = encodeURIComponent(
-      `<h1>Missing ELECTRON_REMOTE_URL</h1><p>Set ELECTRON_REMOTE_URL in apps/electron/.env</p>`
-    );
-    startUrl = `data:text/html;charset=utf-8,${html}`;
-    error('ELECTRON_REMOTE_URL not set; showing inline error page');
-  } else {
-    startUrl = REMOTE_URL;
-    log('Loading remote URL:', startUrl);
-  }
+let startUrl;
+if (REMOTE_URL) {
+  startUrl = REMOTE_URL;
+  log('Loading remote URL:', startUrl);
+} else {
+  const html = encodeURIComponent(
+    `<h1>Missing ELECTRON_REMOTE_URL</h1><p>Set ELECTRON_REMOTE_URL in apps/electron/.env</p>`
+  );
+  startUrl = `data:text/html;charset=utf-8,${html}`;
+  error('ELECTRON_REMOTE_URL not set; showing inline error page');
+}
 
-  await createWindow(startUrl);
-})();
+await createWindow(startUrl);
 
 app.on('before-quit', (e) => {
   if (!allowQuit) {
@@ -196,8 +194,11 @@ app.on('before-quit', (e) => {
 });
 
 app.on('activate', () => {
-  if (!mainWindow) void createWindow(REMOTE_URL || 'data:text/html;charset=utf-8,Missing ELECTRON_REMOTE_URL');
-  else mainWindow.show();
+  if (mainWindow) {
+    mainWindow.show();
+  } else {
+    void createWindow(REMOTE_URL || 'data:text/html;charset=utf-8,Missing ELECTRON_REMOTE_URL');
+  }
 });
 
 app.on('window-all-closed', () => {

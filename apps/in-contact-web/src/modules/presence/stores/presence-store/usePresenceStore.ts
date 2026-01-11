@@ -329,14 +329,12 @@ export const usePresenceStore = create<IPresenceState>((set, get) => {
         if (isOnline) {
           // Remove from offline users
           offlineUsers = state.offlineUsers.filter((x) => x.email !== user.email);
+        } else if (wasOffline) {
+          // Update existing offline user
+          offlineUsers = state.offlineUsers.map((u) => (u.email === user.email ? updatedUser : u));
         } else {
-          if (wasOffline) {
-            // Update existing offline user
-            offlineUsers = state.offlineUsers.map((u) => (u.email === user.email ? updatedUser : u));
-          } else {
-            // Add new offline user
-            offlineUsers = [...state.offlineUsers, updatedUser];
-          }
+          // Add new offline user
+          offlineUsers = [...state.offlineUsers, updatedUser];
         }
 
         return { onlineUsers, offlineUsers };

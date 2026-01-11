@@ -7,7 +7,6 @@
 import type { Column } from '@/ui-kit/tables';
 import { getUsersByRole } from '../../api/adminClient';
 import type {
-  UserManagementConfig,
   BaseUserManagementItem,
   CandidateUser,
   UserRoleParam,

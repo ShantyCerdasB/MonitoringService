@@ -63,7 +63,7 @@ export class ErrorLogService implements IErrorLogService {
     source: ErrorSource;
     endpoint?: string;
     functionName?: string;
-    error: Error | unknown;
+    error: unknown;
     userId?: string;
     userEmail?: string;
     requestId?: string;
@@ -104,7 +104,7 @@ export class ErrorLogService implements IErrorLogService {
   async logChatServiceError(data: {
     endpoint: string;
     functionName: string;
-    error: Error | unknown;
+    error: unknown;
     userId?: string;
     userEmail?: string;
     chatId?: string;
@@ -129,7 +129,7 @@ export class ErrorLogService implements IErrorLogService {
    * @param error - Error object or unknown type
    * @returns Object containing error name, message, and stack trace
    */
-  private extractErrorDetails(error: Error | unknown): {
+  private extractErrorDetails(error: unknown): {
     errorName: string | null;
     errorMessage: string;
     stackTrace: string | null;
@@ -172,7 +172,7 @@ export class ErrorLogService implements IErrorLogService {
    * @param error - Error object
    * @returns Determined severity level
    */
-  private determineSeverity(source: ErrorSource, error: Error | unknown): ErrorSeverity {
+  private determineSeverity(source: ErrorSource, error: unknown): ErrorSeverity {
     if (error instanceof Error) {
       const errorName = error.name?.toLowerCase() || '';
       const errorMessage = error.message?.toLowerCase() || '';

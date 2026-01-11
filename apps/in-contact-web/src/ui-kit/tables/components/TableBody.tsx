@@ -27,7 +27,7 @@ export function TableBody<T>({
   loadingAction,
   showSelection,
   isModalMode,
-}: ITableBodyProps<T>): JSX.Element {
+}: Readonly<ITableBodyProps<T>>): JSX.Element {
   if (loading) {
     return (
       <tbody>

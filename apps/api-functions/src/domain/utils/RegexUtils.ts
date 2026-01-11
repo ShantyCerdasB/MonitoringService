@@ -13,9 +13,19 @@ const MAX_EMAIL_LENGTH = 255;
 
 /**
  * Safe email validation regex pattern
- * Uses anchored pattern with character class to prevent catastrophic backtracking
+ * Uses a simple, non-backtracking pattern to prevent ReDoS attacks.
+ * Pattern breakdown:
+ * - ^ : Start of string
+ * - [a-zA-Z0-9._+-]+ : Local part (one or more alphanumeric, dots, underscores, plus, hyphens)
+ * - @ : Required @ symbol
+ * - [a-zA-Z0-9.-]+ : Domain name (one or more alphanumeric, dots, hyphens)
+ * - \. : Required dot
+ * - [a-zA-Z]{2,} : TLD (two or more letters)
+ * - $ : End of string
+ * 
+ * This pattern avoids nested quantifiers and ambiguous alternations that cause catastrophic backtracking.
  */
-const SAFE_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SAFE_EMAIL_REGEX = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 /**
  * Validates email format safely to prevent ReDoS

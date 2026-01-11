@@ -187,7 +187,7 @@ export class WebSocketService {
     })();
 
     // Install a single 'online' handler (first connect only)
-    if (typeof globalThis.window !== 'undefined' && !this.onlineListener) {
+    if (globalThis.window !== undefined && !this.onlineListener) {
       this.onlineListener = () => {
         if (!this.isConnected() && this.shouldReconnect) {
           this.scheduleReconnect('online event', true);

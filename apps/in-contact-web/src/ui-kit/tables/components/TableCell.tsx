@@ -23,7 +23,7 @@ export function TableCell<T>({
   rowIndex,
   columnIndex,
   isModalMode,
-}: ITableCellProps<T>): JSX.Element {
+}: Readonly<ITableCellProps<T>>): JSX.Element {
   const cellContent = renderCellContent(row, column);
 
   return (

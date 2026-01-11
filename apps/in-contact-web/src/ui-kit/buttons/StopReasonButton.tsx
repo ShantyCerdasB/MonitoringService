@@ -162,5 +162,5 @@ const StopReasonButton: React.FC<IStopReasonButtonProps> = ({
 
 export default StopReasonButton;
 export type { IStopReasonButtonProps, StopReasonOption } from './types/stopReasonButtonTypes';
-export { StreamingStopReason as StopReason };
+export { StreamingStopReason as StopReason } from '@/modules/pso-streaming/enums/streamingStopReason';
 

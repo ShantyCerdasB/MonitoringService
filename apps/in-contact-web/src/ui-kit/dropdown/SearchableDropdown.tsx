@@ -59,7 +59,7 @@ export function SearchableDropdown<Value>({
   closeOnSelect = false,
   showSelectAll = false,
   isLoading = false,
-}: ISearchableDropdownProps<Value>): JSX.Element {
+}: Readonly<ISearchableDropdownProps<Value>>): JSX.Element {
   const [term, setTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -138,10 +138,9 @@ export function SearchableDropdown<Value>({
 
         {!isLoading &&
           filtered.map(opt => (
-            <div
+            <button
+              type="button"
               key={String(opt.value)}
-              role="button"
-              tabIndex={0}
               className={itemClassName}
               onMouseDown={e => { e.preventDefault(); e.stopPropagation(); }}
               onClick={() => toggle(opt.value)}
@@ -159,7 +158,7 @@ export function SearchableDropdown<Value>({
                 />
               </div>
               <span>{opt.label}</span>
-            </div>
+            </button>
           ))}
 
         {!isLoading && filtered.length === 0 && (

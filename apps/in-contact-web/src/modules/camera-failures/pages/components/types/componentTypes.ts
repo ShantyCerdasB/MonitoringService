@@ -4,8 +4,7 @@
  * @description Defines interfaces for camera failure detail component props
  */
 
-import type { NormalizedDevice, NormalizedAttempt } from '../../../types/cameraFailureTypes';
-import type { CameraFailureReport } from '../../../types/cameraFailureTypes';
+import type { NormalizedDevice, NormalizedAttempt, CameraFailureReport } from '../../../types/cameraFailureTypes';
 
 /**
  * Props for DeviceItem component

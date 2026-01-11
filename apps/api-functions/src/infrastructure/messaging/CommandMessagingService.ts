@@ -37,11 +37,13 @@ export class CommandMessagingService implements ICommandMessagingService {
     try {
       await this.sendToWebSocket(command);
       return MessagingResult.webSocketSuccess();
-    } catch (wsError) {
+    } catch (wsError: unknown) {
+      // Fallback to Service Bus if WebSocket fails
+      const wsErrorMessage = wsError instanceof Error ? wsError.message : String(wsError);
       try {
         await this.sendToServiceBus(command);
         return MessagingResult.serviceBusSuccess();
-      } catch (busError) {
+      } catch (busError: unknown) {
         const errorMessage = busError instanceof Error ? busError.message : String(busError);
         return MessagingResult.failure(MessagingChannel.ServiceBus, errorMessage);
       }

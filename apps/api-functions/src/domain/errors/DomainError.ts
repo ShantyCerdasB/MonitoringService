@@ -3,7 +3,6 @@
  * @description Provides structured error handling with specific error codes
  */
 
-import { AuthErrorCode, ValidationErrorCode, MessagingErrorCode, ApplicationErrorCode, SupervisorErrorCode, UserRoleChangeErrorCode, UserDeletionErrorCode } from './ErrorCodes';
 import { getCentralAmericaTime } from '../../utils/dateUtils';
 
 /**

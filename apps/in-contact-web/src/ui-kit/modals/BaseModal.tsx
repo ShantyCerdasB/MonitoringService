@@ -121,7 +121,7 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
     border-2 border-white
     rounded-lg shadow-xl
     w-[90%]
-  `.replace(/\s+/g, ' ').trim();
+  `.replaceAll(/\s+/g, ' ').trim();
 
   // Final container class calculation:
   // - If classNameOverride is provided, use that exactly
@@ -156,19 +156,23 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {customHeader ? (
-          <div 
-            role={draggable ? "button" : undefined}
-            tabIndex={draggable ? 0 : undefined}
-            aria-label={draggable ? "Drag to move modal" : undefined}
-            onMouseDown={draggable ? handleMouseDown : undefined}
-            onKeyDown={draggable ? (e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-              }
-            } : undefined}
-          >
-            {customHeader}
-          </div>
+          draggable ? (
+            <button
+              type="button"
+              aria-label="Drag to move modal"
+              onMouseDown={handleMouseDown}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                }
+              }}
+              className="w-full cursor-move"
+            >
+              {customHeader}
+            </button>
+          ) : (
+            <div>{customHeader}</div>
+          )
         ) : null}
         {children}
         {customFooter}

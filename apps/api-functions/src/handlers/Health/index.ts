@@ -24,13 +24,13 @@ function parseQueryParams(query: Record<string, unknown>): {
   includeUsers: boolean;
 } {
   const verboseValue = query.verbose;
-  const verboseStr = typeof verboseValue === 'string' ? verboseValue : String(verboseValue ?? "");
+  const verboseStr = typeof verboseValue === 'string' ? verboseValue : (verboseValue == null ? '' : String(verboseValue));
   
   const dbValue = query.db;
-  const dbStr = typeof dbValue === 'string' ? dbValue : String(dbValue ?? "true");
+  const dbStr = typeof dbValue === 'string' ? dbValue : (dbValue == null ? 'true' : String(dbValue));
   
   const usersValue = query.users;
-  const usersStr = typeof usersValue === 'string' ? usersValue : String(usersValue ?? "");
+  const usersStr = typeof usersValue === 'string' ? usersValue : (usersValue == null ? '' : String(usersValue));
   
   return {
     verbose: verboseStr.toLowerCase() === "true",
@@ -156,7 +156,7 @@ export default async function HealthFunction(ctx: Context): Promise<void> {
     log('[Health] Starting health check');
     const timestamp = new Date().toISOString();
 
-    const req = (ctx.req as HttpRequest | undefined) ?? {} as HttpRequest;
+    const req = (ctx.req ?? {}) as HttpRequest;
     const query = (req.query ?? {}) as Record<string, unknown>;
     const { verbose, dbEnabled, includeUsers } = parseQueryParams(query);
 

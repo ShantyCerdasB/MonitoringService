@@ -77,8 +77,7 @@ export class WebSocketMessageParser {
     }
 
     if (ArrayBuffer.isView(raw)) {
-      const typedArray = raw as ArrayBufferView;
-      return this.decodeArrayBuffer(typedArray.buffer as ArrayBuffer);
+      return this.decodeArrayBuffer(raw.buffer);
     }
 
     // Unknown payload type — cannot convert

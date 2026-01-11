@@ -45,8 +45,8 @@ export function createAdminPageConfig(): UserManagementConfig<AdminItem> {
       removeErrorMessage: 'Failed to remove admin',
     },
     columns: {
-      mainColumns: BASE_MAIN_COLUMNS as Column<AdminItem>[],
-      candidateColumns: BASE_CANDIDATE_COLUMNS as Column<UserByRole>[],
+      mainColumns: BASE_MAIN_COLUMNS,
+      candidateColumns: BASE_CANDIDATE_COLUMNS,
     },
   };
 }

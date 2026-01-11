@@ -24,7 +24,7 @@ export function TableHeader<T>({
   someVisibleSelected,
   onToggleAll,
   headerBg,
-}: ITableHeaderProps<T>): JSX.Element {
+}: Readonly<ITableHeaderProps<T>>): JSX.Element {
   const showSelection = selection !== undefined;
 
   return (

@@ -19,7 +19,7 @@ export interface ISupervisorState {
   /**
    * Last supervisor list change notification (for triggering re-renders)
    */
-  lastSupervisorListChange: unknown | null;
+  lastSupervisorListChange: unknown;
 
   /**
    * Handles supervisor change notification

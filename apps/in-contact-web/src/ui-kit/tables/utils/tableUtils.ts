@@ -45,13 +45,24 @@ export function filterTableData<T>(
 
       const cell = typeof col.key === 'string'
         ? (row as Record<string, unknown>)[col.key]
-        : row[col.key as keyof T];
+        : row[col.key];
 
       if (cell == null) {
         return false;
       }
       
-      const cellValue = typeof cell === 'string' ? cell : (typeof cell === 'object' ? JSON.stringify(cell) : String(cell));
+      let cellValue: string;
+      if (typeof cell === 'string') {
+        cellValue = cell;
+      } else if (typeof cell === 'object') {
+        try {
+          cellValue = JSON.stringify(cell);
+        } catch {
+          cellValue = String(cell);
+        }
+      } else {
+        cellValue = String(cell);
+      }
       return cellValue.toLowerCase().includes(normalizedTerm);
     })
   );

@@ -177,17 +177,24 @@ const PSOsStreamingPage: React.FC = () => {
         />
       </div>
 
-      {presenceLoading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <Loading action="Loading PSOs…" />
-        </div>
-      ) : displayList.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center text-white">
-          <div className="max-w-2xl text-center px-4">
-            No PSOs to display
-          </div>
-        </div>
-      ) : (
+      {(() => {
+        if (presenceLoading) {
+          return (
+            <div className="flex flex-1 items-center justify-center">
+              <Loading action="Loading PSOs…" />
+            </div>
+          );
+        }
+        if (displayList.length === 0) {
+          return (
+            <div className="flex flex-1 items-center justify-center text-white">
+              <div className="max-w-2xl text-center px-4">
+                No PSOs to display
+              </div>
+            </div>
+          );
+        }
+        return (
         <VideoGridContainer itemCount={displayList.length}>
           {displayList.map((p, i) => {
             const key = p.email.toLowerCase();
@@ -240,7 +247,8 @@ const PSOsStreamingPage: React.FC = () => {
             );
           })}
         </VideoGridContainer>
-      )}
+        );
+      })()}
 
       {/* Talk navigation guard - intercepts navigation during active talk sessions */}
       <TalkNavigationGuard />

@@ -336,7 +336,7 @@ async function handleConnectEvent(
   context.res = { 
     status: response.status || 200,
     headers: { "Content-Type": "application/json" },
-    body: response.status !== 200 ? { error: response.message } : undefined
+    body: response.status === 200 ? undefined : { error: response.message }
   };
 }
 

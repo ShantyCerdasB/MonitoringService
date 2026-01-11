@@ -9,6 +9,11 @@ import { User } from '../../domain/entities/User';
 import { wrapPsoFetchError, wrapSupervisorFetchError } from '../../utils/error/ErrorHelpers';
 
 /**
+ * Result type for supervisor find operations
+ */
+type SupervisorFindResult = User | string | null;
+
+/**
  * Repository for supervisor data access operations
  */
 export class SupervisorRepository implements ISupervisorRepository {
@@ -109,7 +114,7 @@ export class SupervisorRepository implements ISupervisorRepository {
    * @param identifier - UUID identifier
    * @returns User if found and is supervisor, error message, or null if not found
    */
-  private async findSupervisorById(identifier: string): Promise<User | string | null> {
+  private async findSupervisorById(identifier: string): Promise<SupervisorFindResult> {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.exec(identifier)) {
       return null;
@@ -123,7 +128,7 @@ export class SupervisorRepository implements ISupervisorRepository {
    * @param identifier - Azure AD Object ID
    * @returns User if found and is supervisor, error message, or null if not found
    */
-  private async findSupervisorByAzureAdObjectId(identifier: string): Promise<User | string | null> {
+  private async findSupervisorByAzureAdObjectId(identifier: string): Promise<SupervisorFindResult> {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.exec(identifier)) {
       return null;
@@ -139,7 +144,7 @@ export class SupervisorRepository implements ISupervisorRepository {
    * @param identifier - Email address
    * @returns User if found and is supervisor, error message, or null if not found
    */
-  private async findSupervisorByEmail(identifier: string): Promise<User | string | null> {
+  private async findSupervisorByEmail(identifier: string): Promise<SupervisorFindResult> {
     if (!identifier.includes('@')) {
       return null;
     }

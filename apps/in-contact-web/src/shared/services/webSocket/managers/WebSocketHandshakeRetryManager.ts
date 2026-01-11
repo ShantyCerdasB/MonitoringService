@@ -72,7 +72,7 @@ export class WebSocketHandshakeRetryManager {
       elapsed,
       error,
     });
-    if (typeof window !== 'undefined') {
+    if (globalThis.window !== undefined) {
       globalThis.window.location.reload();
     }
     throw error;

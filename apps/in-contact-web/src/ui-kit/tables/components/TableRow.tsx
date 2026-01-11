@@ -24,7 +24,7 @@ export function TableRow<T>({
   selection,
   rowKey,
   isModalMode,
-}: ITableRowProps<T>): JSX.Element {
+}: Readonly<ITableRowProps<T>>): JSX.Element {
   const showSelection = selection !== undefined;
   const { selectedKeys = [], onToggleRow = () => {} } = selection ?? {};
 

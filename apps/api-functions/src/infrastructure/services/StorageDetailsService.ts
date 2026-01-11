@@ -224,6 +224,7 @@ export class StorageDetailsService {
       credentialsSource = config.storageConnectionString ? 'connection_string' : 'individual_vars';
     } catch (err: unknown) {
       // Error resolving credentials - mark source as error
+      // Error is intentionally ignored as fallback behavior is to mark source as 'error'
       credentialsSource = 'error';
     }
 

@@ -68,7 +68,7 @@ export class WebSocketGroupRetryManager {
       elapsed,
       error,
     });
-    if (typeof window !== 'undefined') {
+    if (globalThis.window !== undefined) {
       globalThis.window.location.reload();
     }
     throw error;

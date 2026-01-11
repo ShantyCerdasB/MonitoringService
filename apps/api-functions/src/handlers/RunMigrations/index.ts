@@ -128,7 +128,7 @@ async function executeMigration(
   ctx: Context
 ): Promise<{ stdout: string; stderr: string; succeeded: boolean }> {
   ctx.log.info("[RunMigrations] Starting migration without data loss");
-  const migrationCommand = baseCommand.replaceAll(/--force-reset --accept-data-loss/g, '').trim();
+  const migrationCommand = baseCommand.replaceAll('--force-reset --accept-data-loss', '').trim();
   
   try {
     const result = await execAsync(migrationCommand, execOptions);
@@ -142,19 +142,8 @@ async function executeMigration(
     const stdoutValue = extractErrorProperty(firstAttemptError, 'stdout');
     const stderrValue = extractErrorProperty(firstAttemptError, 'stderr');
     
-    let errorStdout: string;
-    if (typeof stdoutValue === 'string') {
-      errorStdout = stdoutValue;
-    } else {
-      errorStdout = stdoutValue ? String(stdoutValue) : '';
-    }
-    
-    let errorStderr: string;
-    if (typeof stderrValue === 'string') {
-      errorStderr = stderrValue;
-    } else {
-      errorStderr = stderrValue ? String(stderrValue) : '';
-    }
+    const errorStdout = typeof stdoutValue === 'string' ? stdoutValue : (stdoutValue == null ? '' : String(stdoutValue));
+    const errorStderr = typeof stderrValue === 'string' ? stderrValue : (stderrValue == null ? '' : String(stderrValue));
     
     const errorOutput = errorStdout + errorStderr;
     

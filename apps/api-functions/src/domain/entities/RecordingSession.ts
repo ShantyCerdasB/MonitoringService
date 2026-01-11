@@ -8,6 +8,16 @@ import { RecordingStatus } from '@prisma/client';
 import { getCentralAmericaTime } from '../../utils/dateUtils';
 
 /**
+ * Type alias for startedAt values from Prisma
+ */
+type StartedAtValue = Date | string | null;
+
+/**
+ * Type alias for stoppedAt values from Prisma
+ */
+type StoppedAtValue = Date | string | null;
+
+/**
  * Domain entity for recording sessions
  * 
  * @param id - Unique identifier for the recording session
@@ -53,7 +63,7 @@ export class RecordingSession {
    * @param startedAt - StartedAt value from Prisma (Date, string, or null)
    * @returns Parsed Date
    */
-  private static parseStartedAt(startedAt: Date | string | null): Date {
+  private static parseStartedAt(startedAt: StartedAtValue): Date {
     if (!startedAt) {
       return getCentralAmericaTime();
     }
@@ -68,7 +78,7 @@ export class RecordingSession {
    * @param stoppedAt - StoppedAt value from Prisma (Date, string, or null)
    * @returns Parsed Date or null
    */
-  private static parseStoppedAt(stoppedAt: Date | string | null): Date | null {
+  private static parseStoppedAt(stoppedAt: StoppedAtValue): Date | null {
     if (!stoppedAt) {
       return null;
     }
@@ -92,8 +102,8 @@ export class RecordingSession {
     subjectUserId: string | null;
     subjectLabel: string | null;
     status: string;
-    startedAt: Date | string | null;
-    stoppedAt: Date | string | null;
+    startedAt: StartedAtValue;
+    stoppedAt: StoppedAtValue;
     blobUrl: string | null;
     blobPath: string | null;
     createdAt: Date;

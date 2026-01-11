@@ -83,7 +83,7 @@ export function useVideoCardHandlers(
   }, [openModal]);
 
   const handleRecordClick = useCallback((): void => {
-    toggleRecording();
+    void toggleRecording();
   }, [toggleRecording]);
 
   return {

@@ -220,7 +220,7 @@ export function useRemoteTracks(options: IUseRemoteTracksOptions): IUseRemoteTra
 
     const setupRoomListeners = (): boolean => {
       const room = roomRef.current;
-      if (!room || room.state !== 'connected') {
+      if (room?.state !== 'connected') {
         return false;
       }
 
@@ -268,16 +268,20 @@ export function useRemoteTracks(options: IUseRemoteTracksOptions): IUseRemoteTra
       checkCount++;
 
       if (setupRoomListeners()) {
-        clearInterval(intervalId!);
-        intervalId = null;
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
       } else if (checkCount >= MAX_ROOM_CHECK_COUNT) {
         logWarn('[useRemoteTracks] Room not available after polling', {
           targetIdentity,
           checkCount,
           isConnected,
         });
-        clearInterval(intervalId!);
-        intervalId = null;
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
       }
     }, ROOM_CHECK_INTERVAL_MS);
 

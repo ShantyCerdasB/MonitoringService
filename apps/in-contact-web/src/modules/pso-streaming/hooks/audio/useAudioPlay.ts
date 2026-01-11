@@ -30,18 +30,25 @@ function handlePlaybackSuccess(
 }
 
 /**
+ * Configuration for playback error handling
+ */
+interface IPlaybackErrorConfig {
+  retryCountRef: React.MutableRefObject<number>;
+  maxRetries: number;
+  retryDelay: number;
+  tryPlay: () => Promise<void>;
+  resolve: () => void;
+  reject: (error: Error) => void;
+}
+
+/**
  * Handles playback error with retry logic
  */
 function handlePlaybackError(
   err: Error,
-  retryCountRef: React.MutableRefObject<number>,
-  maxRetries: number,
-  retryDelay: number,
-  audioElement: HTMLAudioElement,
-  tryPlay: () => Promise<void>,
-  resolve: () => void,
-  reject: (error: Error) => void
+  config: IPlaybackErrorConfig
 ): void {
+  const { retryCountRef, maxRetries, retryDelay, tryPlay, resolve, reject } = config;
   retryCountRef.current++;
 
   if (err.name === 'NotAllowedError') {
@@ -78,14 +85,14 @@ function createTryPlayFunction(
       }
 
       const playPromise = audioElement.play();
-      if (!playPromise) {
+      if (playPromise === undefined) {
         resolve();
         return;
       }
 
       playPromise
         .then(() => handlePlaybackSuccess(retryCountRef, resolve))
-        .catch((err: Error) => handlePlaybackError(err, retryCountRef, maxRetries, retryDelay, audioElement, tryPlay, resolve, reject));
+        .catch((err: Error) => handlePlaybackError(err, { retryCountRef, maxRetries, retryDelay, tryPlay, resolve, reject }));
     });
   };
 

@@ -14,6 +14,121 @@ import type {
 } from './types/useTalkSessionNotificationsTypes';
 
 /**
+ * Handles talk session start message
+ * 
+ * @param data - Message data
+ * @param filterPsoEmail - PSO email to filter by
+ * @param onTalkSessionStart - Callback when session starts
+ * @param setIsTalkActive - State setter for talk active status
+ * @param setIsIncoming - State setter for incoming status
+ * @param setJustEnded - State setter for just ended status
+ * @param setSupervisorName - State setter for supervisor name
+ */
+function handleTalkSessionStart(
+  data: { psoEmail?: string; supervisorEmail?: string; supervisorName?: string },
+  filterPsoEmail: string,
+  onTalkSessionStart: ((message: { supervisorEmail?: string; supervisorName?: string }) => void) | undefined,
+  setIsTalkActive: (value: boolean) => void,
+  setIsIncoming: (value: boolean) => void,
+  setJustEnded: (value: boolean) => void,
+  setSupervisorName: (value: string | null) => void
+): void {
+  const messagePsoEmail = data.psoEmail?.toLowerCase();
+  
+  if (messagePsoEmail !== filterPsoEmail) {
+    logDebug('[useTalkSessionNotifications] Message filtered out - email mismatch', {
+      messagePsoEmail,
+      filterPsoEmail,
+    });
+    return;
+  }
+  
+  logDebug('[useTalkSessionNotifications] Talk session started', { psoEmail: filterPsoEmail, data });
+  playIncomingCallSound();
+  
+  setIsTalkActive(true);
+  setIsIncoming(true);
+  setJustEnded(false);
+  setSupervisorName((data.supervisorName as string) || null);
+  
+  // Reset isIncoming after 3 seconds
+  setTimeout(() => {
+    setIsIncoming(false);
+  }, 3000);
+  
+  if (onTalkSessionStart) {
+    onTalkSessionStart({
+      supervisorEmail: data.supervisorEmail,
+      supervisorName: data.supervisorName,
+    });
+  }
+}
+
+/**
+ * Handles talk session end message
+ * 
+ * @param data - Message data
+ * @param filterPsoEmail - PSO email to filter by
+ * @param onTalkSessionEnd - Callback when session ends
+ * @param setIsTalkActive - State setter for talk active status
+ * @param setIsIncoming - State setter for incoming status
+ * @param setJustEnded - State setter for just ended status
+ * @param setSupervisorName - State setter for supervisor name
+ * @param justEndedTimeoutRef - Ref for timeout cleanup
+ */
+function handleTalkSessionEnd(
+  data: { psoEmail?: string },
+  filterPsoEmail: string,
+  onTalkSessionEnd: (() => void) | undefined,
+  setIsTalkActive: (value: boolean) => void,
+  setIsIncoming: (value: boolean) => void,
+  setJustEnded: (value: boolean) => void,
+  setSupervisorName: (value: string | null) => void,
+  justEndedTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>
+): void {
+  const messagePsoEmail = data.psoEmail?.toLowerCase();
+  
+  if (messagePsoEmail && messagePsoEmail !== filterPsoEmail) {
+    logDebug('[useTalkSessionNotifications] Message filtered out - email mismatch', {
+      messagePsoEmail,
+      filterPsoEmail,
+    });
+    return;
+  }
+  
+  logDebug('[useTalkSessionNotifications] Talk session ended', { psoEmail: filterPsoEmail });
+  const hangUpSoundPromise = playHangUpSound();
+  
+  setIsTalkActive(false);
+  setIsIncoming(false);
+  setJustEnded(true);
+  setSupervisorName(null);
+  
+  // Reset justEnded when the hang up sound finishes playing
+  if (justEndedTimeoutRef.current) {
+    clearTimeout(justEndedTimeoutRef.current);
+    justEndedTimeoutRef.current = null;
+  }
+  
+  const handleSoundSuccess = (): void => {
+    setJustEnded(false);
+  };
+  
+  const handleSoundFailure = (): void => {
+    // Fallback: hide banner after 2 seconds if sound fails
+    justEndedTimeoutRef.current = setTimeout(() => {
+      setJustEnded(false);
+    }, 2000);
+  };
+  
+  hangUpSoundPromise.then(handleSoundSuccess).catch(handleSoundFailure);
+  
+  if (onTalkSessionEnd) {
+    onTalkSessionEnd();
+  }
+}
+
+/**
  * Hook for listening to talk session notifications via WebSocket
  * 
  * @param options - Configuration options
@@ -37,90 +152,38 @@ export function useTalkSessionNotifications(
       return;
     }
     
+    const filterPsoEmail = psoEmail.toLowerCase();
+    
     // Handler for WebSocket messages
     const handleMessage = (message: unknown): void => {
       try {
         const msg = message as Record<string, unknown>;
         
-        // Handle talk session start - admin-web uses 'talk_session_start' type directly
         if (msg.type === 'talk_session_start') {
           const data = msg as { psoEmail?: string; supervisorEmail?: string; supervisorName?: string };
-          const messagePsoEmail = data.psoEmail?.toLowerCase();
-          const filterPsoEmail = psoEmail.toLowerCase();
-          
-          if (messagePsoEmail !== filterPsoEmail) {
-            logDebug('[useTalkSessionNotifications] Message filtered out - email mismatch', {
-              messagePsoEmail,
-              filterPsoEmail,
-            });
-            return;
-          }
-          
-          logDebug('[useTalkSessionNotifications] Talk session started', { psoEmail, data });
-          playIncomingCallSound();
-          
-          setIsTalkActive(true);
-          setIsIncoming(true);
-          setJustEnded(false);
-          setSupervisorName((data.supervisorName as string) || null);
-          
-          // Reset isIncoming after 3 seconds
-          setTimeout(() => {
-            setIsIncoming(false);
-          }, 3000);
-          
-          if (onTalkSessionStart) {
-            onTalkSessionStart({
-              supervisorEmail: data.supervisorEmail,
-              supervisorName: data.supervisorName,
-            });
-          }
+          handleTalkSessionStart(
+            data,
+            filterPsoEmail,
+            onTalkSessionStart,
+            setIsTalkActive,
+            setIsIncoming,
+            setJustEnded,
+            setSupervisorName
+          );
         }
         
-        // Handle talk session end - admin-web uses 'talk_session_stop' type directly
         if (msg.type === 'talk_session_stop') {
           const data = msg as { psoEmail?: string };
-          const messagePsoEmail = data.psoEmail?.toLowerCase();
-          const filterPsoEmail = psoEmail.toLowerCase();
-          
-          if (messagePsoEmail && messagePsoEmail !== filterPsoEmail) {
-            logDebug('[useTalkSessionNotifications] Message filtered out - email mismatch', {
-              messagePsoEmail,
-              filterPsoEmail,
-            });
-            return;
-          }
-          
-          logDebug('[useTalkSessionNotifications] Talk session ended', { psoEmail });
-          const hangUpSoundPromise = playHangUpSound();
-          
-          setIsTalkActive(false);
-          setIsIncoming(false);
-          setJustEnded(true);
-          setSupervisorName(null);
-          
-          // Reset justEnded when the hang up sound finishes playing
-          if (justEndedTimeoutRef.current) {
-            clearTimeout(justEndedTimeoutRef.current);
-            justEndedTimeoutRef.current = null;
-          }
-          
-          const handleSoundSuccess = (): void => {
-            setJustEnded(false);
-          };
-          
-          const handleSoundFailure = (): void => {
-            // Fallback: hide banner after 2 seconds if sound fails
-            justEndedTimeoutRef.current = setTimeout(() => {
-              setJustEnded(false);
-            }, 2000);
-          };
-          
-          hangUpSoundPromise.then(handleSoundSuccess).catch(handleSoundFailure);
-          
-          if (onTalkSessionEnd) {
-            onTalkSessionEnd();
-          }
+          handleTalkSessionEnd(
+            data,
+            filterPsoEmail,
+            onTalkSessionEnd,
+            setIsTalkActive,
+            setIsIncoming,
+            setJustEnded,
+            setSupervisorName,
+            justEndedTimeoutRef
+          );
         }
       } catch (error) {
         logError('[useTalkSessionNotifications] Error handling message', { error, psoEmail });
@@ -147,4 +210,3 @@ export function useTalkSessionNotifications(
     supervisorName,
   };
 }
-

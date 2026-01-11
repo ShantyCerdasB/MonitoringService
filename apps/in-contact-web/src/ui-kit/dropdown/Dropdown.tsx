@@ -17,16 +17,6 @@ import { useClickOutside } from './hooks/useClickOutside';
  * @param props - Component props
  * @returns JSX element with dropdown
  * 
- * @example
- * ```tsx
- * <Dropdown
- *   value={selected}
- *   onSelect={setSelected}
- *   options={[
- *     { label: 'Option 1', value: 1 },
- *     { label: 'Option 2', value: 2 },
- *   ]}
- * />
  * ```
  */
 export const Dropdown: React.FC<IDropdownProps> = ({
@@ -149,7 +139,6 @@ export const Dropdown: React.FC<IDropdownProps> = ({
                     onSelect(option.value);
                     setIsOpen(false);
                   }}
-                  aria-selected={option.value === value}
                   className={`
                     w-full text-left px-4 py-2
                     rounded-lg transition-colors

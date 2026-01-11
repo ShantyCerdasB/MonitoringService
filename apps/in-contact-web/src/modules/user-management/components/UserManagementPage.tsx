@@ -190,26 +190,42 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
   }, []);
 
   // Selection config for main table (enabled for future batch operations)
+  const handleToggleRow = useCallback((key: string) => {
+    setSelectedMainKeys(prev => [...prev, key]);
+  }, []);
+
+  const handleUntoggleRow = useCallback((key: string) => {
+    setSelectedMainKeys(prev => prev.filter((k) => k !== key));
+  }, []);
+
+  const handleToggleAll = useCallback((keys: string[]) => {
+    setSelectedMainKeys(prev => [...new Set([...prev, ...keys])]);
+  }, []);
+
+  const handleUntoggleAll = useCallback((keys: string[]) => {
+    setSelectedMainKeys(prev => prev.filter((k) => !keys.includes(k)));
+  }, []);
+
   const mainSelection = useMemo(
     () => ({
       selectedKeys: selectedMainKeys,
       onToggleRow: (key: string, checked: boolean) => {
         if (checked) {
-          setSelectedMainKeys([...selectedMainKeys, key]);
+          handleToggleRow(key);
         } else {
-          setSelectedMainKeys(selectedMainKeys.filter((k) => k !== key));
+          handleUntoggleRow(key);
         }
       },
       onToggleAll: (checked: boolean, keys: string[]) => {
         if (checked) {
-          setSelectedMainKeys([...new Set([...selectedMainKeys, ...keys])]);
+          handleToggleAll(keys);
         } else {
-          setSelectedMainKeys(selectedMainKeys.filter((k) => !keys.includes(k)));
+          handleUntoggleAll(keys);
         }
       },
       getRowKey: (row: T, index: number) => getMainRowKey(row, index),
     }),
-    [selectedMainKeys, getMainRowKey]
+    [selectedMainKeys, handleToggleRow, handleUntoggleRow, handleToggleAll, handleUntoggleAll, getMainRowKey]
   );
 
 
@@ -230,15 +246,12 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
               )
             }
             externalLoading={externalLoading || itemsLoading || isRemoving}
-            externalLoadingAction={
-              externalLoading
-                ? 'Transferring PSOs...'
-                : isRemoving
-                  ? 'Deleting user...'
-                  : totalCount === undefined
-                    ? 'Loading...'
-                    : config.ui.loadingAction
-            }
+            externalLoadingAction={(() => {
+              if (externalLoading) return 'Transferring PSOs...';
+              if (isRemoving) return 'Deleting user...';
+              if (totalCount === undefined) return 'Loading...';
+              return config.ui.loadingAction;
+            })()}
             customFilter={customFilter}
           />
         </div>
