@@ -181,7 +181,9 @@ export const RecordingReportPage: React.FC = () => {
             controls
             className="max-w-full max-h-[75vh] rounded"
             src={preview.playbackUrl || preview.blobUrl || undefined}
-          />
+          >
+            <track kind="captions" srcLang="en" label="English" />
+          </video>
         )}
       </PreviewModal>
 

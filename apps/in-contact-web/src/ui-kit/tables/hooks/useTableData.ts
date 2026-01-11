@@ -60,8 +60,12 @@ export function useTableData<T extends { id?: string }>(
         let cellValue: string;
         if (typeof cell === 'string') {
           cellValue = cell;
-        } else if (typeof cell === 'object') {
-          cellValue = JSON.stringify(cell);
+        } else if (typeof cell === 'object' && cell !== null) {
+          try {
+            cellValue = JSON.stringify(cell);
+          } catch {
+            cellValue = '[object]';
+          }
         } else {
           cellValue = String(cell);
         }

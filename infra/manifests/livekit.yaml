@@ -28,20 +28,22 @@ spec:
               path: redis.conf
       containers:
         - name: redis
-          image: redis
+          image: redis:7-alpine
           command:
             - redis-server
             - "/redis-master/redis.conf"
           env:
-          - name: MASTER
-            value: "true"
+            - name: MASTER
+              value: "true"
           ports:
           - containerPort: 6379
           resources:
             limits:
+              cpu: "500m"
               memory: "512Mi"
               ephemeral-storage: "1Gi"
             requests:
+              cpu: "250m"
               memory: "256Mi"
               ephemeral-storage: "512Mi"
           volumeMounts:
@@ -153,7 +155,7 @@ spec:
       terminationGracePeriodSeconds: 18000 # 5 hours
       containers:
         - name: livekit-server
-          image: livekit/livekit-server:latest
+          image: livekit/livekit-server:v1.4.0
           imagePullPolicy: IfNotPresent
           env:
             - name: LIVEKIT_CONFIG
@@ -165,6 +167,7 @@ spec:
             requests:
               cpu: "500m"
               memory: "512Mi"
+              ephemeral-storage: "1Gi"
             limits:
               cpu: "2000m"
               memory: "2Gi"
@@ -271,7 +274,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: livekit-egress
-          image: livekit/egress:latest
+          image: livekit/egress:v1.4.0
           imagePullPolicy: IfNotPresent
           env:
             - name: EGRESS_CONFIG_FILE
@@ -288,9 +291,11 @@ spec:
                   key: AZURE_STORAGE_KEY
           resources:
             limits:
+              cpu: "1000m"
               memory: "1Gi"
               ephemeral-storage: "2Gi"
             requests:
+              cpu: "250m"
               memory: "512Mi"
               ephemeral-storage: "1Gi"
           securityContext:

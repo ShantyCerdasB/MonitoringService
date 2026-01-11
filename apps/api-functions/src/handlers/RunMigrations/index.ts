@@ -142,8 +142,23 @@ async function executeMigration(
     const stdoutValue = extractErrorProperty(firstAttemptError, 'stdout');
     const stderrValue = extractErrorProperty(firstAttemptError, 'stderr');
     
-    const errorStdout = typeof stdoutValue === 'string' ? stdoutValue : (stdoutValue == null ? '' : String(stdoutValue));
-    const errorStderr = typeof stderrValue === 'string' ? stderrValue : (stderrValue == null ? '' : String(stderrValue));
+    let errorStdout: string;
+    if (typeof stdoutValue === 'string') {
+      errorStdout = stdoutValue;
+    } else if (stdoutValue == null) {
+      errorStdout = '';
+    } else {
+      errorStdout = String(stdoutValue);
+    }
+    
+    let errorStderr: string;
+    if (typeof stderrValue === 'string') {
+      errorStderr = stderrValue;
+    } else if (stderrValue == null) {
+      errorStderr = '';
+    } else {
+      errorStderr = String(stderrValue);
+    }
     
     const errorOutput = errorStdout + errorStderr;
     

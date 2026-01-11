@@ -29,7 +29,7 @@ export function createNavigationClickHandler(options: {
     }
 
     const href = anchor.getAttribute('href');
-    if (!href || !href.startsWith('/')) {
+    if (!href?.startsWith('/')) {
       // External link or non-navigation link
       return;
     }

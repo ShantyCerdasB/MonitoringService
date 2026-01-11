@@ -27,7 +27,7 @@ export class WebSocketMessageParser {
    * @param event - Raw WebSocket event
    * @returns Parsed JSON object or null if parsing fails
    */
-  static parse(event: unknown): unknown | null {
+  static parse(event: unknown): unknown {
     // Extract raw payload from event structure
     const raw = this.extractRawPayload(event);
     if (!raw) {
@@ -41,7 +41,8 @@ export class WebSocketMessageParser {
     }
 
     // Parse JSON
-    return this.parseJson(text);
+    const parsed = this.parseJson(text);
+    return parsed ?? null;
   }
 
   /**
@@ -100,7 +101,7 @@ export class WebSocketMessageParser {
    * @param text - JSON string
    * @returns Parsed object or null if parsing fails
    */
-  private static parseJson(text: string): unknown | null {
+  private static parseJson(text: string): unknown {
     try {
       return JSON.parse(text);
     } catch (error) {

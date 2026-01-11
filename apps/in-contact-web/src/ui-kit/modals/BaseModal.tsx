@@ -154,6 +154,11 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
         className={containerClass}
         style={classNameOverride ? {} : { left: pos.x, top: pos.y }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Prevent keyboard events from propagating
+          e.stopPropagation();
+        }}
+        role="document"
       >
         {customHeader ? (
           draggable ? (

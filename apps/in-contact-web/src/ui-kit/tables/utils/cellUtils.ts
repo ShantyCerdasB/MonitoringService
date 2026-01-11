@@ -26,11 +26,11 @@ export function formatCellValue(value: unknown): string {
   if (typeof value === 'string') {
     return value;
   }
-  if (typeof value === 'object') {
+  if (typeof value === 'object' && value !== null) {
     try {
       return JSON.stringify(value);
     } catch {
-      return String(value);
+      return '[object]';
     }
   }
   return String(value);

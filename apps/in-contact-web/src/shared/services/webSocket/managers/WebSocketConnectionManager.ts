@@ -195,7 +195,7 @@ export class WebSocketConnectionManager {
    * @param event - Raw event
    * @returns Parsed message or null
    */
-  private static parseMessage(event: unknown): unknown | null {
+  private static parseMessage(event: unknown): unknown {
     return WebSocketMessageParser.parse(event);
   }
 

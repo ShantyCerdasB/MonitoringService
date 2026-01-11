@@ -36,12 +36,7 @@ export function startCountdown(
     callbacks.onCountdownUpdate(null);
     callbacks.onCountdownEnd();
 
-    try {
-      await callbacks.onComplete();
-    } catch (error) {
-      // Re-throw error to allow caller to handle it
-      throw error;
-    }
+    await callbacks.onComplete();
   }, COUNTDOWN_DURATION_MS);
 
   // Return cancel function

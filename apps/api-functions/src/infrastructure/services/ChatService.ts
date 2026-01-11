@@ -194,7 +194,7 @@ export class ChatService implements IChatService {
     const items: any[] = [];
 
     if (message.psoEmail) {
-      const emailStr = typeof message.psoEmail === 'string' ? message.psoEmail : String(message.psoEmail);
+      const emailStr = typeof message.psoEmail === 'string' ? message.psoEmail : (typeof message.psoEmail === 'object' ? JSON.stringify(message.psoEmail) : String(message.psoEmail));
       items.push({
         type: 'TextBlock',
         text: `**Email:** ${emailStr}`,
@@ -203,7 +203,7 @@ export class ChatService implements IChatService {
     }
 
     if (message.capturedAt) {
-      const capturedAtStr = typeof message.capturedAt === 'string' ? message.capturedAt : String(message.capturedAt);
+      const capturedAtStr = typeof message.capturedAt === 'string' ? message.capturedAt : (typeof message.capturedAt === 'object' ? JSON.stringify(message.capturedAt) : String(message.capturedAt));
       items.push({
         type: 'TextBlock',
         text: `**Captured At (Central Time):** ${capturedAtStr}`,
@@ -212,7 +212,7 @@ export class ChatService implements IChatService {
     }
 
     if (message.capturedBy) {
-      const capturedByStr = typeof message.capturedBy === 'string' ? message.capturedBy : String(message.capturedBy);
+      const capturedByStr = typeof message.capturedBy === 'string' ? message.capturedBy : (typeof message.capturedBy === 'object' ? JSON.stringify(message.capturedBy) : String(message.capturedBy));
       items.push({
         type: 'TextBlock',
         text: `**Captured By:** ${capturedByStr}`,
@@ -221,7 +221,7 @@ export class ChatService implements IChatService {
     }
 
     if (message.reason) {
-      const reasonStr = typeof message.reason === 'string' ? message.reason : String(message.reason);
+      const reasonStr = typeof message.reason === 'string' ? message.reason : (typeof message.reason === 'object' ? JSON.stringify(message.reason) : String(message.reason));
       items.push({
         type: 'TextBlock',
         text: `**Reason:** ${reasonStr}`,
@@ -300,7 +300,14 @@ export class ChatService implements IChatService {
     ];
 
     if (messageType === 'snapshotReport') {
-      const psoNameStr = typeof message.psoName === 'string' ? message.psoName : (message.psoName == null ? 'Unknown' : String(message.psoName));
+      let psoNameStr: string;
+      if (typeof message.psoName === 'string') {
+        psoNameStr = message.psoName;
+      } else if (message.psoName == null) {
+        psoNameStr = 'Unknown';
+      } else {
+        psoNameStr = String(message.psoName);
+      }
       cardBody.push(
         {
           type: 'TextBlock',

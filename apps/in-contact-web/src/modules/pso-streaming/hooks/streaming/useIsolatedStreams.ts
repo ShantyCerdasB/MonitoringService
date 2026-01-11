@@ -180,8 +180,8 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
     const MAX_RETRIES = 3;
     const RETRY_DELAYS = [500, 1000, 2000]; // Exponential backoff: 500ms, 1s, 2s
     
-    const attemptFetchWithRetry = async (attempt?: number): Promise<void> => {
-      const currentAttempt = attempt ?? 0;
+    const attemptFetchWithRetry = async (attempt: number = 0): Promise<void> => {
+      const currentAttempt = attempt;
       try {
         const creds = await fetchCredentialsForEmail(emailKey);
         if (creds) {
@@ -198,7 +198,7 @@ export function useIsolatedStreams(viewerEmail: string, emails: string[]): Creds
         }
         
         if (currentAttempt < MAX_RETRIES) {
-          const delay: number = RETRY_DELAYS[currentAttempt] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1] ?? 2000;
+          const delay: number = RETRY_DELAYS[currentAttempt] ?? RETRY_DELAYS.at(-1) ?? 2000;
           logDebug('[useIsolatedStreams] Token not available yet, scheduling retry', {
             email: emailKey,
             attempt: currentAttempt + 1,

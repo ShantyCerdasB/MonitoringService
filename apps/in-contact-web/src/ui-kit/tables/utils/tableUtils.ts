@@ -54,11 +54,11 @@ export function filterTableData<T>(
       let cellValue: string;
       if (typeof cell === 'string') {
         cellValue = cell;
-      } else if (typeof cell === 'object') {
+      } else if (typeof cell === 'object' && cell !== null) {
         try {
           cellValue = JSON.stringify(cell);
         } catch {
-          cellValue = String(cell);
+          cellValue = '[object]';
         }
       } else {
         cellValue = String(cell);

@@ -36,7 +36,7 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
   externalLoading,
   refreshKey,
   customFilter,
-}: IUserManagementPageProps<T>): JSX.Element {
+}: Readonly<IUserManagementPageProps<T>>): JSX.Element {
   const { account } = useAuth();
   const currentEmail = account?.username?.toLowerCase() ?? '';
   const [selectedMainKeys, setSelectedMainKeys] = useState<string[]>([]);

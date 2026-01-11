@@ -112,6 +112,7 @@ export function SearchableDropdown<Value>({
     <div
       ref={menuRef}
       className={menuClassName}
+      role="menu"
       style={
         usePortal && portalPosition
           ? {

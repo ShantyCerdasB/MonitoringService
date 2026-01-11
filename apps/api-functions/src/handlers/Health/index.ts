@@ -24,13 +24,34 @@ function parseQueryParams(query: Record<string, unknown>): {
   includeUsers: boolean;
 } {
   const verboseValue = query.verbose;
-  const verboseStr = typeof verboseValue === 'string' ? verboseValue : (verboseValue == null ? '' : String(verboseValue));
+  let verboseStr: string;
+  if (typeof verboseValue === 'string') {
+    verboseStr = verboseValue;
+  } else if (verboseValue == null) {
+    verboseStr = '';
+  } else {
+    verboseStr = String(verboseValue);
+  }
   
   const dbValue = query.db;
-  const dbStr = typeof dbValue === 'string' ? dbValue : (dbValue == null ? 'true' : String(dbValue));
+  let dbStr: string;
+  if (typeof dbValue === 'string') {
+    dbStr = dbValue;
+  } else if (dbValue == null) {
+    dbStr = 'true';
+  } else {
+    dbStr = String(dbValue);
+  }
   
   const usersValue = query.users;
-  const usersStr = typeof usersValue === 'string' ? usersValue : (usersValue == null ? '' : String(usersValue));
+  let usersStr: string;
+  if (typeof usersValue === 'string') {
+    usersStr = usersValue;
+  } else if (usersValue == null) {
+    usersStr = '';
+  } else {
+    usersStr = String(usersValue);
+  }
   
   return {
     verbose: verboseStr.toLowerCase() === "true",

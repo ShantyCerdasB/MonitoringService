@@ -41,7 +41,7 @@ export function playHangUpSound(): Promise<void> {
       });
       
       audio.addEventListener('error', (error) => {
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       });
       
       audio.play().catch((error) => {

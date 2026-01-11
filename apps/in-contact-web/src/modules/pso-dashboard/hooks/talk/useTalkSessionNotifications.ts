@@ -65,25 +65,29 @@ function handleTalkSessionStart(
 }
 
 /**
+ * State setters configuration for talk session end handler
+ */
+interface ITalkSessionEndSetters {
+  setIsTalkActive: (value: boolean) => void;
+  setIsIncoming: (value: boolean) => void;
+  setJustEnded: (value: boolean) => void;
+  setSupervisorName: (value: string | null) => void;
+}
+
+/**
  * Handles talk session end message
  * 
  * @param data - Message data
  * @param filterPsoEmail - PSO email to filter by
  * @param onTalkSessionEnd - Callback when session ends
- * @param setIsTalkActive - State setter for talk active status
- * @param setIsIncoming - State setter for incoming status
- * @param setJustEnded - State setter for just ended status
- * @param setSupervisorName - State setter for supervisor name
+ * @param setters - State setters configuration
  * @param justEndedTimeoutRef - Ref for timeout cleanup
  */
 function handleTalkSessionEnd(
   data: { psoEmail?: string },
   filterPsoEmail: string,
   onTalkSessionEnd: (() => void) | undefined,
-  setIsTalkActive: (value: boolean) => void,
-  setIsIncoming: (value: boolean) => void,
-  setJustEnded: (value: boolean) => void,
-  setSupervisorName: (value: string | null) => void,
+  setters: ITalkSessionEndSetters,
   justEndedTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>
 ): void {
   const messagePsoEmail = data.psoEmail?.toLowerCase();
@@ -99,6 +103,7 @@ function handleTalkSessionEnd(
   logDebug('[useTalkSessionNotifications] Talk session ended', { psoEmail: filterPsoEmail });
   const hangUpSoundPromise = playHangUpSound();
   
+  const { setIsTalkActive, setIsIncoming, setJustEnded, setSupervisorName } = setters;
   setIsTalkActive(false);
   setIsIncoming(false);
   setJustEnded(true);
@@ -178,10 +183,12 @@ export function useTalkSessionNotifications(
             data,
             filterPsoEmail,
             onTalkSessionEnd,
-            setIsTalkActive,
-            setIsIncoming,
-            setJustEnded,
-            setSupervisorName,
+            {
+              setIsTalkActive,
+              setIsIncoming,
+              setJustEnded,
+              setSupervisorName,
+            },
             justEndedTimeoutRef
           );
         }

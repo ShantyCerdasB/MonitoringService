@@ -4,7 +4,6 @@
  * @description Defines API functions, UI labels, and columns for Admin page
  */
 
-import type { Column } from '@/ui-kit/tables';
 import { createRoleBasedClient } from '../../api/utils';
 import type {
   UserByRole,

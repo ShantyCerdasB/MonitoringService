@@ -60,7 +60,7 @@ const StopReasonButton: React.FC<IStopReasonButtonProps> = ({
       }
     };
 
-    const handleScroll = (): void => {
+    const updatePosition = (): void => {
       if (isOpen && buttonRef.current) {
         const rect = buttonRef.current.getBoundingClientRect();
         setPosition({
@@ -70,15 +70,8 @@ const StopReasonButton: React.FC<IStopReasonButtonProps> = ({
       }
     };
 
-    const handleResize = (): void => {
-      if (isOpen && buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect();
-        setPosition({
-          top: rect.bottom + DROPDOWN_OFFSET_TOP,
-          left: rect.left,
-        });
-      }
-    };
+    const handleScroll = updatePosition;
+    const handleResize = updatePosition;
 
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
