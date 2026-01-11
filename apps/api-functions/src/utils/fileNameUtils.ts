@@ -30,13 +30,15 @@ export function sanitizeFileName(input: string, maxLength: number = 50): string 
   sanitized = sanitized.replace(/_+/g, '_');
 
   // Remove leading/trailing underscores, dots, or hyphens
-  sanitized = sanitized.replace(/^[._-]+|[._-]+$/g, '');
+  // Split into two replace calls to avoid alternation and ensure safe execution
+  sanitized = sanitized.replace(/^[._-]+/, '');
+  sanitized = sanitized.replace(/[._-]+$/, '');
 
   // Truncate to max length
   if (sanitized.length > maxLength) {
     sanitized = sanitized.substring(0, maxLength);
-    // Remove trailing underscore if truncated
-    sanitized = sanitized.replace(/_+$/, '');
+    // Remove trailing underscore if truncated (anchored pattern - safe from ReDoS)
+    sanitized = sanitized.replace(/[._-]+$/, '');
   }
 
   // If empty after sanitization, return a default value

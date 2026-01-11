@@ -15,6 +15,7 @@ import { DataTable } from '@/ui-kit/tables';
 import { ConfirmModal, PreviewModal } from '@/ui-kit/modals';
 import { logError } from '@/shared/utils/logger';
 import { useTableSelection } from '@/shared/hooks/useTableSelection';
+import { useLocalDataLoader } from '@/shared/hooks/useLocalDataLoader';
 import { createSnapshotReportColumns } from './config/snapshotReportPageConfig';
 import type { SnapshotReport } from '../types/snapshotTypes';
 
@@ -134,25 +135,12 @@ export const SnapshotReportPage: React.FC = () => {
     [columnsConfig]
   );
 
-  // Create data fetch handler
-  const handleDataFetch = useCallback(async (limit: number, offset: number) => {
-    const paginated = reports.slice(offset, offset + limit);
-    return {
-      data: paginated,
-      total: reports.length,
-      count: paginated.length,
-    };
-  }, [reports]);
-
-  const dataLoader = useMemo(
-    () => ({
-      totalCount: reports.length,
-      onFetch: handleDataFetch,
-      initialFetchSize: 200,
-      fetchSize: 200,
-    }),
-    [reports.length, handleDataFetch]
-  );
+  // Create data loader for local pagination
+  const { dataLoader } = useLocalDataLoader({
+    data: reports,
+    initialFetchSize: 200,
+    fetchSize: 200,
+  });
 
   return (
     <>

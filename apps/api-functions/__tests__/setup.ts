@@ -123,14 +123,26 @@ jest.mock('@azure/web-pubsub', () => ({
   /**
    * Generates a test UUID
    * @returns A test UUID string
+   * @remarks Uses crypto.getRandomValues for secure random generation in tests
    */
-  generateUuid: () => 'test-uuid-' + Math.random().toString(36).substr(2, 9),
+  generateUuid: () => {
+    // Use crypto API for secure random generation instead of Math.random()
+    const array = new Uint8Array(9);
+    crypto.getRandomValues(array);
+    return 'test-uuid-' + Array.from(array, byte => byte.toString(36)).join('').substring(0, 9);
+  },
 
   /**
    * Generates a test email
    * @returns A test email string
+   * @remarks Uses crypto.getRandomValues for secure random generation in tests
    */
-  generateEmail: () => `test-${Math.random().toString(36).substr(2, 9)}@example.com`,
+  generateEmail: () => {
+    // Use crypto API for secure random generation instead of Math.random()
+    const array = new Uint8Array(9);
+    crypto.getRandomValues(array);
+    return `test-${Array.from(array, byte => byte.toString(36)).join('').substring(0, 9)}@example.com`;
+  },
 
   /**
    * Creates a mock user object

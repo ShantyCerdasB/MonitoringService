@@ -55,6 +55,9 @@ export class WebSocketReconnectManager {
   /**
    * Calculates reconnect delay with jitter
    * 
+   * Uses crypto.getRandomValues for secure random number generation
+   * instead of Math.random() for better security.
+   * 
    * @param immediate - If true, returns 0 delay
    * @returns Delay in milliseconds
    */
@@ -63,8 +66,11 @@ export class WebSocketReconnectManager {
       return 0;
     }
 
+    // Use crypto API for secure random generation instead of Math.random()
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
     const jitter = Math.floor(
-      Math.random() * RECONNECT_CONFIG.JITTER_MAX_MS
+      (array[0] / (0xFFFFFFFF + 1)) * RECONNECT_CONFIG.JITTER_MAX_MS
     );
     return Math.min(
       this.backoffMs + jitter,

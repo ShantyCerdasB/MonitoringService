@@ -24,9 +24,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@0b8d3d10b5bf2972d1f83e43b8643e6c3ad4760a # v4.0.2
         with:
           node-version: ${{ env.NODE_VER }}
           cache: npm
@@ -53,7 +53,7 @@ jobs:
           cd "${{ env.FUNC_SRC }}"
           npm run build:deploy
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@5d5d22e31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: function-zip
           path: deploy.zip
