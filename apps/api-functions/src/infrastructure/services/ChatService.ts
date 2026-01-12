@@ -185,52 +185,57 @@ export class ChatService implements IChatService {
   }
 
   /**
+   * Converts a value to a string representation safely
+   * @param value - Value to convert
+   * @returns String representation of the value
+   */
+  private valueToString(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'object' && value !== null) {
+      return JSON.stringify(value);
+    }
+    return String(value);
+  }
+
+  /**
+   * Creates a text block element for adaptive cards
+   * @param label - Label for the field
+   * @param value - Value to display
+   * @returns TextBlock element or null if value is falsy
+   */
+  private createTextBlock(label: string, value: unknown): any | null {
+    if (!value) {
+      return null;
+    }
+    return {
+      type: 'TextBlock',
+      text: `**${label}:** ${this.valueToString(value)}`,
+      wrap: true
+    };
+  }
+
+  /**
    * Builds adaptive card body for snapshot report message
    * @param message - Message data
    * @returns Array of card body elements
    */
   private buildSnapshotReportCardBody(message: Record<string, unknown>): any[] {
     const cardBody: any[] = [];
-    const items: any[] = [];
 
-    if (message.psoEmail) {
-      const emailStr = typeof message.psoEmail === 'string' ? message.psoEmail : (typeof message.psoEmail === 'object' ? JSON.stringify(message.psoEmail) : String(message.psoEmail));
-      items.push({
-        type: 'TextBlock',
-        text: `**Email:** ${emailStr}`,
-        wrap: true
-      });
-    }
+    const fields = [
+      { key: 'psoEmail', label: 'Email' },
+      { key: 'capturedAt', label: 'Captured At (Central Time)' },
+      { key: 'capturedBy', label: 'Captured By' },
+      { key: 'reason', label: 'Reason' }
+    ];
 
-    if (message.capturedAt) {
-      const capturedAtStr = typeof message.capturedAt === 'string' ? message.capturedAt : (typeof message.capturedAt === 'object' ? JSON.stringify(message.capturedAt) : String(message.capturedAt));
-      items.push({
-        type: 'TextBlock',
-        text: `**Captured At (Central Time):** ${capturedAtStr}`,
-        wrap: true
-      });
-    }
-
-    if (message.capturedBy) {
-      const capturedByStr = typeof message.capturedBy === 'string' ? message.capturedBy : (typeof message.capturedBy === 'object' ? JSON.stringify(message.capturedBy) : String(message.capturedBy));
-      items.push({
-        type: 'TextBlock',
-        text: `**Captured By:** ${capturedByStr}`,
-        wrap: true
-      });
-    }
-
-    if (message.reason) {
-      const reasonStr = typeof message.reason === 'string' ? message.reason : (typeof message.reason === 'object' ? JSON.stringify(message.reason) : String(message.reason));
-      items.push({
-        type: 'TextBlock',
-        text: `**Reason:** ${reasonStr}`,
-        wrap: true
-      });
-    }
-
-    if (items.length > 0) {
-      cardBody.push(...items);
+    for (const field of fields) {
+      const textBlock = this.createTextBlock(field.label, message[field.key]);
+      if (textBlock) {
+        cardBody.push(textBlock);
+      }
     }
 
     if (message.imageUrl && typeof message.imageUrl === 'string') {
@@ -306,7 +311,7 @@ export class ChatService implements IChatService {
       } else if (message.psoName == null) {
         psoNameStr = 'Unknown';
       } else {
-        psoNameStr = String(message.psoName);
+        psoNameStr = typeof message.psoName === 'object' ? JSON.stringify(message.psoName) : String(message.psoName);
       }
       cardBody.push(
         {
@@ -554,7 +559,7 @@ export class ChatService implements IChatService {
           })
         )
           .map((record) => record?.azureAdObjectId)
-          .filter((oid): oid is string => Boolean(oid))
+          .filter((oid): oid is string => typeof oid === 'string' && oid !== '')
           .map((oid) => oid.toLowerCase())
       );
 

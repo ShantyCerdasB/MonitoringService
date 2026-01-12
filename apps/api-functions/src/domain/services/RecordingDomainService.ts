@@ -65,8 +65,8 @@ export class RecordingDomainService implements IRecordingDomainService {
    * @returns Array of unique user IDs
    */
   private extractUserIds(sessions: RecordingSession[]): string[] {
-    const subjectIds = sessions.map(s => s.roomName).filter((id): id is string => Boolean(id));
-    const initiatorIds = sessions.map(s => s.userId).filter((id): id is string => Boolean(id));
+    const subjectIds = sessions.map(s => s.roomName).filter(Boolean) as string[];
+    const initiatorIds = sessions.map(s => s.userId).filter(Boolean) as string[];
     return Array.from(new Set([...subjectIds, ...initiatorIds]));
   }
 

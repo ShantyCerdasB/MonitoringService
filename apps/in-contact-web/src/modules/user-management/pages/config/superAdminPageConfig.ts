@@ -20,6 +20,7 @@ import {
   mapFullNameToItem,
   createFetchCandidates,
   createCandidateColumns,
+  createCommonMainColumns,
 } from './sharedConfigUtils';
 
 /**
@@ -82,16 +83,13 @@ export function createSuperAdminPageConfig(): UserManagementConfig<SuperAdminIte
       removeErrorMessage: 'Failed to remove super admin',
     },
     columns: {
-      mainColumns: [
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'email', header: 'Email' },
+      mainColumns: createCommonMainColumns<SuperAdminItem>([
         {
           key: 'role',
           header: 'Role',
           render: (row: SuperAdminItem) => row.role || 'Super Admin',
         },
-      ] as Column<SuperAdminItem>[],
+      ]) as Column<SuperAdminItem>[],
       candidateColumns: createCandidateColumns<UserByRole>(),
     },
     features: {

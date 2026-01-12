@@ -21,6 +21,7 @@ import {
   mapFullNameToItem,
   createFetchCandidates,
   createCandidateColumns,
+  createCommonMainColumns,
 } from './sharedConfigUtils';
 
 /**
@@ -88,13 +89,10 @@ export function createContactManagerPageConfig(): UserManagementConfig<ContactMa
       removeErrorMessage: 'Failed to remove contact manager',
     },
     columns: {
-      mainColumns: [
-        { key: 'firstName', header: 'First Name' },
-        { key: 'lastName', header: 'Last Name' },
-        { key: 'email', header: 'Email' },
+      mainColumns: createCommonMainColumns<ContactManagerItem>([
         { key: 'status', header: 'Status' },
         { key: 'role', header: 'Role' },
-      ] as Column<ContactManagerItem>[],
+      ]) as Column<ContactManagerItem>[],
       candidateColumns: createCandidateColumns<CandidateUser>(),
     },
   };

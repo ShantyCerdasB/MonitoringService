@@ -147,6 +147,8 @@ async function executeMigration(
       errorStdout = stdoutValue;
     } else if (stdoutValue == null) {
       errorStdout = '';
+    } else if (typeof stdoutValue === 'object') {
+      errorStdout = JSON.stringify(stdoutValue);
     } else {
       errorStdout = String(stdoutValue);
     }
@@ -156,6 +158,8 @@ async function executeMigration(
       errorStderr = stderrValue;
     } else if (stderrValue == null) {
       errorStderr = '';
+    } else if (typeof stderrValue === 'object') {
+      errorStderr = JSON.stringify(stderrValue);
     } else {
       errorStderr = String(stderrValue);
     }

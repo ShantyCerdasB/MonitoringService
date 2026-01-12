@@ -37,6 +37,32 @@ export function formatCellValue(value: unknown): string {
 }
 
 /**
+ * Converts a cell value to string for search/filtering purposes
+ * 
+ * Similar to formatCellValue but optimized for search operations.
+ * Returns empty string for null/undefined to skip in search.
+ * 
+ * @param cell - Cell value to convert
+ * @returns String representation of the cell value
+ */
+export function cellValueToString(cell: unknown): string {
+  if (cell == null) {
+    return '';
+  }
+  if (typeof cell === 'string') {
+    return cell;
+  }
+  if (typeof cell === 'object' && cell !== null) {
+    try {
+      return JSON.stringify(cell);
+    } catch {
+      return '[object]';
+    }
+  }
+  return String(cell);
+}
+
+/**
  * Gets cell value from row data based on column key
  * 
  * Handles both string keys and keyof T keys, returning the appropriate value.

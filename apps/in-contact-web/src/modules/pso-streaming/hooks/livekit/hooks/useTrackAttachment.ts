@@ -27,7 +27,7 @@ import type { PendingUnpublishMap } from '../types/trackTransitionTypes';
 export function useTrackAttachment(
   options: IUseTrackAttachmentOptions
 ): IUseTrackAttachmentReturn {
-  const { videoRef, audioRef, audioAttachment } = options;
+  const { videoRef, audioAttachment } = options;
 
   const attachedTracksRef = useRef<Set<string>>(new Set());
   const currentVideoTrackSidRef = useRef<string | null>(null);

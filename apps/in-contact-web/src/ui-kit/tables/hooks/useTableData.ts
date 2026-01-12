@@ -6,6 +6,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import type { IUseTableDataOptions, IUseTableDataReturn, IColumn } from '../types';
+import { cellValueToString } from '../utils/cellUtils';
 
 /**
  * Hook for managing table data with search, pagination, and selection
@@ -57,18 +58,7 @@ export function useTableData<T extends { id?: string }>(
           return false;
         }
         
-        let cellValue: string;
-        if (typeof cell === 'string') {
-          cellValue = cell;
-        } else if (typeof cell === 'object' && cell !== null) {
-          try {
-            cellValue = JSON.stringify(cell);
-          } catch {
-            cellValue = '[object]';
-          }
-        } else {
-          cellValue = String(cell);
-        }
+        const cellValue = cellValueToString(cell);
         return cellValue.toLowerCase().includes(term);
       })
     );

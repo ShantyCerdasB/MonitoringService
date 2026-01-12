@@ -22,7 +22,7 @@ import type {
 export function useTrackSubscriptions(
   options: IUseTrackSubscriptionsOptions
 ): IUseTrackSubscriptionsReturn {
-  const { roomRef, targetIdentity, onTrackReady } = options;
+  const { targetIdentity, onTrackReady } = options;
 
   const participantTrackHandlersRef = useRef(new Map<RemoteParticipant, (pub: any) => void>());
   const pollIntervalsRef = useRef<Set<NodeJS.Timeout>>(new Set());

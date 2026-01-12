@@ -61,3 +61,21 @@ export function createCandidateColumns<T extends CandidateUser>(): Column<T>[] {
   return BASE_CANDIDATE_COLUMNS as Column<T>[];
 }
 
+/**
+ * Creates common main columns for user management pages
+ * 
+ * @template T Item type that extends BaseUserManagementItem
+ * @param additionalColumns - Additional columns to include after the common ones
+ * @returns Array of column definitions
+ */
+export function createCommonMainColumns<T extends BaseUserManagementItem>(
+  additionalColumns: Column<T>[] = []
+): Column<T>[] {
+  return [
+    { key: 'firstName', header: 'First Name' },
+    { key: 'lastName', header: 'Last Name' },
+    { key: 'email', header: 'Email' },
+    ...additionalColumns,
+  ];
+}
+
