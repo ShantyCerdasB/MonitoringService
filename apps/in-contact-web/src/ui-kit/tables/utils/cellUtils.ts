@@ -26,7 +26,7 @@ export function formatCellValue(value: unknown): string {
   if (typeof value === 'string') {
     return value;
   }
-  if (typeof value === 'object' && value !== null) {
+  if (typeof value === 'object') {
     try {
       return JSON.stringify(value);
     } catch {
@@ -39,6 +39,8 @@ export function formatCellValue(value: unknown): string {
   if (typeof value === 'symbol') {
     return value.toString();
   }
+  // At this point, value is a primitive type (function, undefined already handled)
+  // String() is safe for remaining primitives
   return String(value);
 }
 
@@ -58,7 +60,7 @@ export function cellValueToString(cell: unknown): string {
   if (typeof cell === 'string') {
     return cell;
   }
-  if (typeof cell === 'object' && cell !== null) {
+  if (typeof cell === 'object') {
     try {
       return JSON.stringify(cell);
     } catch {
@@ -71,6 +73,8 @@ export function cellValueToString(cell: unknown): string {
   if (typeof cell === 'symbol') {
     return cell.toString();
   }
+  // At this point, cell is a primitive type (function, undefined already handled)
+  // String() is safe for remaining primitives
   return String(cell);
 }
 

@@ -4,7 +4,6 @@
  * @description Defines API functions, UI labels, and columns for Super Admin page
  */
 
-import type { Column } from '@/ui-kit/tables';
 import {
   getSuperAdmins,
   createSuperAdmin,

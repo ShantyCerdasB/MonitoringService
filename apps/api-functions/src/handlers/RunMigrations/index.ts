@@ -142,28 +142,30 @@ async function executeMigration(
     const stdoutValue = extractErrorProperty(firstAttemptError, 'stdout');
     const stderrValue = extractErrorProperty(firstAttemptError, 'stderr');
     
-    let errorStdout: string;
-    if (typeof stdoutValue === 'string') {
-      errorStdout = stdoutValue;
-    } else if (stdoutValue == null) {
-      errorStdout = '';
-    } else if (typeof stdoutValue === 'object' && stdoutValue !== null) {
-      errorStdout = JSON.stringify(stdoutValue);
-    } else {
-      errorStdout = String(stdoutValue);
-    }
+    /**
+     * Converts error property value to string safely
+     * Handles objects by JSON.stringify, null/undefined by default value, and primitive types
+     * @param value - Error property value
+     * @param defaultValue - Default value to use if value is null/undefined
+     * @returns String representation of the value
+     */
+    const errorPropertyToString = (value: unknown, defaultValue: string = ''): string => {
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (value == null) {
+        return defaultValue;
+      }
+      if (typeof value === 'object') {
+        return JSON.stringify(value);
+      }
+      // At this point, value is a primitive (number, boolean, symbol, bigint)
+      // String() is safe for primitives
+      return String(value);
+    };
     
-    let errorStderr: string;
-    if (typeof stderrValue === 'string') {
-      errorStderr = stderrValue;
-    } else if (stderrValue == null) {
-      errorStderr = '';
-    } else if (typeof stderrValue === 'object' && stderrValue !== null) {
-      errorStderr = JSON.stringify(stderrValue);
-    } else {
-      errorStderr = String(stderrValue);
-    }
-    
+    const errorStdout = errorPropertyToString(stdoutValue, '');
+    const errorStderr = errorPropertyToString(stderrValue, '');
     const errorOutput = errorStdout + errorStderr;
     
     if (requiresDataLoss(errorMessage, errorOutput)) {

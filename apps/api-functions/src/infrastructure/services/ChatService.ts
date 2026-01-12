@@ -305,16 +305,28 @@ export class ChatService implements IChatService {
     ];
 
     if (messageType === 'snapshotReport') {
-      let psoNameStr: string;
-      if (typeof message.psoName === 'string') {
-        psoNameStr = message.psoName;
-      } else if (message.psoName == null) {
-        psoNameStr = 'Unknown';
-      } else if (typeof message.psoName === 'object' && message.psoName !== null) {
-        psoNameStr = JSON.stringify(message.psoName);
-      } else {
-        psoNameStr = String(message.psoName);
-      }
+      /**
+       * Converts psoName to string safely
+       * Handles objects by JSON.stringify, null/undefined by default value, and primitive types
+       * @param value - psoName value
+       * @returns String representation of the value
+       */
+      const psoNameToString = (value: unknown): string => {
+        if (typeof value === 'string') {
+          return value;
+        }
+        if (value == null) {
+          return 'Unknown';
+        }
+        if (typeof value === 'object') {
+          return JSON.stringify(value);
+        }
+        // At this point, value is a primitive (number, boolean, symbol, bigint)
+        // String() is safe for primitives
+        return String(value);
+      };
+      
+      const psoNameStr = psoNameToString(message.psoName);
       cardBody.push(
         {
           type: 'TextBlock',

@@ -14,6 +14,28 @@ import { HealthCheckResponse, type HealthCheckUser } from '../../domain/types/He
 import { config } from '../../config';
 
 /**
+ * Converts a query parameter value to a string safely
+ * Handles objects by JSON.stringify, null/undefined by default value, and primitive types
+ * @param value - Query parameter value
+ * @param defaultValue - Default value to use if value is null/undefined
+ * @returns String representation of the value
+ */
+function queryParamToString(value: unknown, defaultValue: string = ''): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value == null) {
+    return defaultValue;
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  // At this point, value is a primitive (number, boolean, symbol, bigint)
+  // String() is safe for primitives
+  return String(value);
+}
+
+/**
  * Parses query parameters from HTTP request
  * @param query - Query parameters object
  * @returns Parsed query parameters
@@ -23,41 +45,9 @@ function parseQueryParams(query: Record<string, unknown>): {
   dbEnabled: boolean;
   includeUsers: boolean;
 } {
-  const verboseValue = query.verbose;
-  let verboseStr: string;
-  if (typeof verboseValue === 'string') {
-    verboseStr = verboseValue;
-  } else if (verboseValue == null) {
-    verboseStr = '';
-  } else if (typeof verboseValue === 'object' && verboseValue !== null) {
-    verboseStr = JSON.stringify(verboseValue);
-  } else {
-    verboseStr = String(verboseValue);
-  }
-  
-  const dbValue = query.db;
-  let dbStr: string;
-  if (typeof dbValue === 'string') {
-    dbStr = dbValue;
-  } else if (dbValue == null) {
-    dbStr = 'true';
-  } else if (typeof dbValue === 'object' && dbValue !== null) {
-    dbStr = JSON.stringify(dbValue);
-  } else {
-    dbStr = String(dbValue);
-  }
-  
-  const usersValue = query.users;
-  let usersStr: string;
-  if (typeof usersValue === 'string') {
-    usersStr = usersValue;
-  } else if (usersValue == null) {
-    usersStr = '';
-  } else if (typeof usersValue === 'object' && usersValue !== null) {
-    usersStr = JSON.stringify(usersValue);
-  } else {
-    usersStr = String(usersValue);
-  }
+  const verboseStr = queryParamToString(query.verbose, '');
+  const dbStr = queryParamToString(query.db, 'true');
+  const usersStr = queryParamToString(query.users, '');
   
   return {
     verbose: verboseStr.toLowerCase() === "true",

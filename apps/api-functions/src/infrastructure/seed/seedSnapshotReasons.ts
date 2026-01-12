@@ -11,14 +11,12 @@ import { logInfo, logError } from '../../utils/standaloneLogger';
  * Main function to seed default snapshot reasons
  * @description Executes the seeding process and exits with appropriate status code
  */
-void (async (): Promise<void> => {
-  try {
-    await seedDefaultSnapshotReasons();
-    logInfo('Snapshot reasons seeded successfully', { operation: 'seedSnapshotReasons' });
-    process.exit(0);
-  } catch (error) {
-    logError(error, { operation: 'seedSnapshotReasons' });
-    process.exit(1);
-  }
-})();
+try {
+  await seedDefaultSnapshotReasons();
+  logInfo('Snapshot reasons seeded successfully', { operation: 'seedSnapshotReasons' });
+  process.exit(0);
+} catch (error) {
+  logError(error, { operation: 'seedSnapshotReasons' });
+  process.exit(1);
+}
 

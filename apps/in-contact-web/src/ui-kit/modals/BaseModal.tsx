@@ -137,7 +137,6 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
       style={{ zIndex }}
       role="dialog"
       aria-modal="true"
-      tabIndex={0}
       onClick={(e) => {
         // Close on overlay click (optional - can be removed if not desired)
         if (e.target === e.currentTarget) {
@@ -154,12 +153,7 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
         ref={modalRef}
         className={containerClass}
         style={classNameOverride ? {} : { left: pos.x, top: pos.y }}
-        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          // Prevent keyboard events from propagating
-          e.stopPropagation();
-        }}
       >
         {(() => {
           if (!customHeader) {

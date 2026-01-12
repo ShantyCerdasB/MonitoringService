@@ -4,7 +4,6 @@
  * @description Defines API functions, UI labels, and columns for Contact Manager page
  */
 
-import type { Column } from '@/ui-kit/tables';
 import { ManagerStatus } from '@/modules/presence/enums/managerStatusEnums';
 import {
   getContactManagers,

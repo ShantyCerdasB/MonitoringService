@@ -142,7 +142,7 @@ export const SupervisorSelector: React.FC<ISupervisorSelectorProps> = ({
             text-white font-normal text-base
           "
           itemClassName="
-            flex items-center px-3 py-2
+            w-full flex items-center px-3 py-2
             text-white font-normal text-base
             hover:bg-[var(--color-primary)] cursor-pointer
             border-b border-[var(--color-primary)] last:border-b-0
