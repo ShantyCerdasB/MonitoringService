@@ -329,8 +329,11 @@ export class ChatService implements IChatService {
         if (typeof value === 'symbol') {
           return value.toString();
         }
-        // Fallback for any other types (should not happen in practice)
-        return String(value);
+        if (typeof value === 'function') {
+          return value.toString();
+        }
+        // This should never be reached in practice, but provide a safe fallback
+        return 'Unknown';
       };
       
       const psoNameStr = psoNameToString(message.psoName);
