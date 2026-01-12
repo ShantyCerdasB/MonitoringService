@@ -109,6 +109,51 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
     return candidate.id || candidate.email || `candidate-${idx}`;
   }, []);
 
+  // Helper function to find candidate by key
+  const findCandidateByKey = useCallback((key: string): CandidateUser | undefined => {
+    for (let idx = 0; idx < candidates.length; idx++) {
+      const c = candidates[idx];
+      const candidateKey = getCandidateRowKey(c, idx);
+      if (candidateKey === key) {
+        return c;
+      }
+    }
+    return undefined;
+  }, [candidates, getCandidateRowKey]);
+
+  // Helper function to get visible emails from keys
+  const getVisibleEmailsFromKeys = useCallback((keys: string[]): string[] => {
+    const visibleEmails: string[] = [];
+    for (let idx = 0; idx < candidates.length; idx++) {
+      const c = candidates[idx];
+      const candidateKey = getCandidateRowKey(c, idx);
+      if (keys.includes(candidateKey)) {
+        visibleEmails.push(c.email);
+      }
+    }
+    return visibleEmails;
+  }, [candidates, getCandidateRowKey]);
+
+  // Handler for toggling a single candidate row
+  const handleCandidateToggleRow = useCallback((key: string, checked: boolean) => {
+    const candidate = findCandidateByKey(key);
+    if (!candidate) return;
+
+    const selectAction = () => setSelectedEmails([...selectedEmails, candidate.email]);
+    const deselectAction = () => setSelectedEmails(selectedEmails.filter((email) => email !== candidate.email));
+    const actions = [deselectAction, selectAction];
+    actions[Number(checked)]();
+  }, [findCandidateByKey, selectedEmails, setSelectedEmails]);
+
+  // Handler for toggling all visible candidates
+  const handleCandidateToggleAll = useCallback((checked: boolean, keys: string[]) => {
+    const visibleEmails = getVisibleEmailsFromKeys(keys);
+    const selectAction = () => setSelectedEmails([...new Set([...selectedEmails, ...visibleEmails])]);
+    const deselectAction = () => setSelectedEmails(selectedEmails.filter((email) => !visibleEmails.includes(email)));
+    const actions = [deselectAction, selectAction];
+    actions[Number(checked)]();
+  }, [getVisibleEmailsFromKeys, selectedEmails, setSelectedEmails]);
+
   // Selection config for candidates table (enables header checkbox)
   const candidateSelection = useMemo(
     () => {
@@ -119,42 +164,12 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
 
       return {
         selectedKeys,
-        onToggleRow: (key: string, checked: boolean) => {
-          // Find candidate by matching key (search through all candidates)
-          for (let idx = 0; idx < candidates.length; idx++) {
-            const c = candidates[idx];
-            const candidateKey = getCandidateRowKey(c, idx);
-            if (candidateKey === key) {
-              const selectAction = () => setSelectedEmails([...selectedEmails, c.email]);
-              const deselectAction = () => setSelectedEmails(selectedEmails.filter((email) => email !== c.email));
-              const actions = [deselectAction, selectAction];
-              actions[Number(checked)]();
-              break;
-            }
-          }
-        },
-        onToggleAll: (checked: boolean, keys: string[]) => {
-          // Find candidates by their keys (keys come from displayData in TableComponent)
-          // We need to match keys to candidates regardless of their position in the filtered/paginated data
-          const visibleEmails: string[] = [];
-          
-          for (let idx = 0; idx < candidates.length; idx++) {
-            const c = candidates[idx];
-            const candidateKey = getCandidateRowKey(c, idx);
-            if (keys.includes(candidateKey)) {
-              visibleEmails.push(c.email);
-            }
-          }
-          
-          const selectAction = () => setSelectedEmails([...new Set([...selectedEmails, ...visibleEmails])]);
-          const deselectAction = () => setSelectedEmails(selectedEmails.filter((email) => !visibleEmails.includes(email)));
-          const actions = [deselectAction, selectAction];
-          actions[Number(checked)]();
-        },
+        onToggleRow: handleCandidateToggleRow,
+        onToggleAll: handleCandidateToggleAll,
         getRowKey: (row: CandidateUser, idx: number) => getCandidateRowKey(row, idx),
       };
     },
-    [candidates, selectedEmails, setSelectedEmails, getCandidateRowKey]
+    [candidates, selectedEmails, getCandidateRowKey, handleCandidateToggleRow, handleCandidateToggleAll]
   );
 
   // Create data loader for incremental pagination

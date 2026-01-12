@@ -129,6 +129,22 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
   const containerClass =
     classNameOverride?.trim() || `${defaultContainer} ${className || ''}`.trim();
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    if (!open) return;
+    
+    const handleEscape = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const modalContent = (
@@ -137,15 +153,9 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
       style={{ zIndex }}
       role="dialog"
       aria-modal="true"
-      tabIndex={0}
       onClick={(e) => {
         // Close on overlay click (optional - can be removed if not desired)
         if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
           onClose();
         }
       }}
