@@ -12,38 +12,7 @@ import { DatabaseHealthCheckService } from '../../infrastructure/services/Databa
 import { HealthStatus } from '../../domain/enums/HealthStatus';
 import { HealthCheckResponse, type HealthCheckUser } from '../../domain/types/HealthCheckTypes';
 import { config } from '../../config';
-
-/**
- * Converts a query parameter value to a string safely
- * Handles objects by JSON.stringify, null/undefined by default value, and primitive types
- * @param value - Query parameter value
- * @param defaultValue - Default value to use if value is null/undefined
- * @returns String representation of the value
- */
-function queryParamToString(value: unknown, defaultValue: string = ''): string {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (value == null) {
-    return defaultValue;
-  }
-  if (typeof value === 'object') {
-    return JSON.stringify(value);
-  }
-  // At this point, value is a primitive (number, boolean, symbol, bigint, function, undefined)
-  // Handle each primitive type explicitly to avoid object stringification
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-    return String(value);
-  }
-  if (typeof value === 'symbol') {
-    return value.toString();
-  }
-  if (typeof value === 'function') {
-    return value.toString();
-  }
-  // This should never be reached in practice, but provide a safe fallback
-  return defaultValue;
-}
+import { unknownToString } from '../../utils/stringHelpers';
 
 /**
  * Parses query parameters from HTTP request
@@ -55,9 +24,9 @@ function parseQueryParams(query: Record<string, unknown>): {
   dbEnabled: boolean;
   includeUsers: boolean;
 } {
-  const verboseStr = queryParamToString(query.verbose, '');
-  const dbStr = queryParamToString(query.db, 'true');
-  const usersStr = queryParamToString(query.users, '');
+  const verboseStr = unknownToString(query.verbose, '');
+  const dbStr = unknownToString(query.db, 'true');
+  const usersStr = unknownToString(query.users, '');
   
   return {
     verbose: verboseStr.toLowerCase() === "true",

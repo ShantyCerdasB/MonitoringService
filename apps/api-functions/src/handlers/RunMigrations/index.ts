@@ -27,6 +27,7 @@ import { ApplicationServiceOperationError } from '../../domain/errors/Applicatio
 import { extractErrorMessage, extractErrorProperty } from '../../utils/error/ErrorHelpers';
 import { ApiEndpoints } from '../../domain/constants/ApiEndpoints';
 import { FunctionNames } from '../../domain/constants/FunctionNames';
+import { unknownToString } from '../../utils/stringHelpers';
 
 const execAsync = promisify(exec);
 
@@ -142,40 +143,8 @@ async function executeMigration(
     const stdoutValue = extractErrorProperty(firstAttemptError, 'stdout');
     const stderrValue = extractErrorProperty(firstAttemptError, 'stderr');
     
-    /**
-     * Converts error property value to string safely
-     * Handles objects by JSON.stringify, null/undefined by default value, and primitive types
-     * @param value - Error property value
-     * @param defaultValue - Default value to use if value is null/undefined
-     * @returns String representation of the value
-     */
-    const errorPropertyToString = (value: unknown, defaultValue: string = ''): string => {
-      if (typeof value === 'string') {
-        return value;
-      }
-      if (value == null) {
-        return defaultValue;
-      }
-      if (typeof value === 'object') {
-        return JSON.stringify(value);
-      }
-      // At this point, value is a primitive (number, boolean, symbol, bigint, function, undefined)
-      // Handle each primitive type explicitly to avoid object stringification
-      if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
-        return String(value);
-      }
-      if (typeof value === 'symbol') {
-        return value.toString();
-      }
-      if (typeof value === 'function') {
-        return value.toString();
-      }
-      // This should never be reached in practice, but provide a safe fallback
-      return defaultValue;
-    };
-    
-    const errorStdout = errorPropertyToString(stdoutValue, '');
-    const errorStderr = errorPropertyToString(stderrValue, '');
+    const errorStdout = unknownToString(stdoutValue, '');
+    const errorStderr = unknownToString(stderrValue, '');
     const errorOutput = errorStdout + errorStderr;
     
     if (requiresDataLoss(errorMessage, errorOutput)) {

@@ -125,11 +125,10 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
             const c = candidates[idx];
             const candidateKey = getCandidateRowKey(c, idx);
             if (candidateKey === key) {
-              if (checked) {
-                setSelectedEmails([...selectedEmails, c.email]);
-              } else {
-                setSelectedEmails(selectedEmails.filter((email) => email !== c.email));
-              }
+              const selectAction = () => setSelectedEmails([...selectedEmails, c.email]);
+              const deselectAction = () => setSelectedEmails(selectedEmails.filter((email) => email !== c.email));
+              const actions = [deselectAction, selectAction];
+              actions[Number(checked)]();
               break;
             }
           }
@@ -147,13 +146,10 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
             }
           }
           
-          if (checked) {
-            // Select all visible candidates
-            setSelectedEmails([...new Set([...selectedEmails, ...visibleEmails])]);
-          } else {
-            // Deselect all visible candidates
-            setSelectedEmails(selectedEmails.filter((email) => !visibleEmails.includes(email)));
-          }
+          const selectAction = () => setSelectedEmails([...new Set([...selectedEmails, ...visibleEmails])]);
+          const deselectAction = () => setSelectedEmails(selectedEmails.filter((email) => !visibleEmails.includes(email)));
+          const actions = [deselectAction, selectAction];
+          actions[Number(checked)]();
         },
         getRowKey: (row: CandidateUser, idx: number) => getCandidateRowKey(row, idx),
       };
@@ -210,18 +206,16 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
     () => ({
       selectedKeys: selectedMainKeys,
       onToggleRow: (key: string, checked: boolean) => {
-        if (checked) {
-          handleToggleRow(key);
-        } else {
-          handleUntoggleRow(key);
-        }
+        const selectAction = () => handleToggleRow(key);
+        const deselectAction = () => handleUntoggleRow(key);
+        const actions = [deselectAction, selectAction];
+        actions[Number(checked)]();
       },
       onToggleAll: (checked: boolean, keys: string[]) => {
-        if (checked) {
-          handleToggleAll(keys);
-        } else {
-          handleUntoggleAll(keys);
-        }
+        const selectAction = () => handleToggleAll(keys);
+        const deselectAction = () => handleUntoggleAll(keys);
+        const actions = [deselectAction, selectAction];
+        actions[Number(checked)]();
       },
       getRowKey: (row: T, index: number) => getMainRowKey(row, index),
     }),
