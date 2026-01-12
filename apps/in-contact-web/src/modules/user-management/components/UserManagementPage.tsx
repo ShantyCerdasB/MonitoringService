@@ -233,9 +233,11 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
             selection={customSelection ?? mainSelection}
             pageSize={10}
             leftToolbarActions={
-              customLeftToolbarActions ?? (
-                <AddButton label={config.ui.addButtonLabel} onClick={handleOpenModal} />
-              )
+              customLeftToolbarActions === null
+                ? null
+                : customLeftToolbarActions ?? (
+                    <AddButton label={config.ui.addButtonLabel} onClick={handleOpenModal} />
+                  )
             }
             externalLoading={externalLoading || itemsLoading || isRemoving}
             externalLoadingAction={(() => {

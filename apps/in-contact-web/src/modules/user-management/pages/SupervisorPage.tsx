@@ -30,11 +30,11 @@ export const SupervisorPage: React.FC = () => {
   const customLeftToolbarActions = useMemo(() => {
     // If userInfo is not loaded yet, don't show the button (wait for role to be determined)
     if (!userInfo) {
-      return undefined;
+      return null;
     }
     // If user is Supervisor, hide the Add button
     if (userInfo.role === UserRole.Supervisor) {
-      return undefined;
+      return null;
     }
     // For SuperAdmin and Admin, show the Add button
     return <AddButton label={config.ui.addButtonLabel} onClick={hook.handleOpenModal} />;
