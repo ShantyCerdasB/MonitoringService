@@ -37,7 +37,8 @@ function handleTalkSessionStart(
   setIsTalkActive: (value: boolean) => void,
   setIsIncoming: (value: boolean) => void,
   setJustEnded: (value: boolean) => void,
-  setSupervisorName: (value: string | null) => void
+  setSupervisorName: (value: string | null) => void,
+  currentIsTalkActive: boolean
 ): void {
   const messagePsoEmail = data.psoEmail?.toLowerCase();
   
@@ -46,6 +47,14 @@ function handleTalkSessionStart(
     logDebug('[useTalkSessionNotifications] Message filtered out - email mismatch', {
       messagePsoEmail,
       filterPsoEmail,
+    });
+    return;
+  }
+  
+  // Don't play incoming sound if session is already active (prevents duplicate sounds on stop/start)
+  if (currentIsTalkActive) {
+    logDebug('[useTalkSessionNotifications] Talk session already active, skipping incoming sound', {
+      psoEmail: filterPsoEmail,
     });
     return;
   }
@@ -226,7 +235,8 @@ export function useTalkSessionNotifications(
             setIsTalkActive,
             setIsIncoming,
             setJustEnded,
-            setSupervisorName
+            setSupervisorName,
+            isTalkActive
           );
         }
         
