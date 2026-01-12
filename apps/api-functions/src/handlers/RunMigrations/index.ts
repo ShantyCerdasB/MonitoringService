@@ -159,8 +159,15 @@ async function executeMigration(
       if (typeof value === 'object') {
         return JSON.stringify(value);
       }
-      // At this point, value is a primitive (number, boolean, symbol, bigint)
-      // String() is safe for primitives
+      // At this point, value is a primitive (number, boolean, symbol, bigint, function, undefined)
+      // Handle each primitive type explicitly to avoid object stringification
+      if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+        return String(value);
+      }
+      if (typeof value === 'symbol') {
+        return value.toString();
+      }
+      // Fallback for any other types (should not happen in practice)
       return String(value);
     };
     
