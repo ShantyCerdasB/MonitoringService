@@ -64,12 +64,12 @@ export interface IUseTalkSessionNotificationsReturn {
 }
 
 /**
- * State setters configuration for talk session end handler
+ * State setters configuration for talk session handlers
  * 
- * Groups React state setter functions used by the talk session end handler
- * to update multiple state values when a session ends.
+ * Groups React state setter functions used by talk session handlers
+ * to update multiple state values.
  */
-export interface ITalkSessionEndSetters {
+export interface ITalkSessionSetters {
   /**
    * Sets whether a talk session is currently active
    */
@@ -89,5 +89,43 @@ export interface ITalkSessionEndSetters {
    * Sets the supervisor name for the session
    */
   setSupervisorName: (value: string | null) => void;
+}
+
+/**
+ * State setters configuration for talk session end handler
+ * 
+ * Groups React state setter functions used by the talk session end handler
+ * to update multiple state values when a session ends.
+ */
+export interface ITalkSessionEndSetters extends ITalkSessionSetters {}
+
+/**
+ * Configuration for talk session start handler
+ */
+export interface ITalkSessionStartConfig {
+  /**
+   * WebSocket message data containing PSO email and supervisor information
+   */
+  data: { psoEmail?: string; supervisorEmail?: string; supervisorName?: string };
+  
+  /**
+   * Normalized PSO email to filter messages for this hook instance
+   */
+  filterPsoEmail: string;
+  
+  /**
+   * Optional callback to invoke when session starts
+   */
+  onTalkSessionStart: ((message: { supervisorEmail?: string; supervisorName?: string }) => void) | undefined;
+  
+  /**
+   * State setters for updating talk session state
+   */
+  setters: ITalkSessionSetters;
+  
+  /**
+   * Whether a talk session is currently active (prevents duplicate sounds)
+   */
+  currentIsTalkActive: boolean;
 }
 

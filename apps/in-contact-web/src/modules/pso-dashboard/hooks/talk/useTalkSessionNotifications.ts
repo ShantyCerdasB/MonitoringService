@@ -14,6 +14,7 @@ import type {
   IUseTalkSessionNotificationsOptions,
   IUseTalkSessionNotificationsReturn,
   ITalkSessionEndSetters,
+  ITalkSessionStartConfig,
 } from './types/useTalkSessionNotificationsTypes';
 
 /**
@@ -22,24 +23,12 @@ import type {
  * Filters messages by PSO email, updates state to indicate an active incoming session,
  * plays audio notification, and invokes the start callback if provided.
  * 
- * @param data - WebSocket message data containing PSO email and supervisor information
- * @param filterPsoEmail - Normalized PSO email to filter messages for this hook instance
- * @param onTalkSessionStart - Optional callback to invoke when session starts
- * @param setIsTalkActive - State setter to mark session as active
- * @param setIsIncoming - State setter to indicate incoming session
- * @param setJustEnded - State setter to clear just-ended flag
- * @param setSupervisorName - State setter to store supervisor name
+ * @param config - Configuration object containing all handler parameters
  */
-function handleTalkSessionStart(
-  data: { psoEmail?: string; supervisorEmail?: string; supervisorName?: string },
-  filterPsoEmail: string,
-  onTalkSessionStart: ((message: { supervisorEmail?: string; supervisorName?: string }) => void) | undefined,
-  setIsTalkActive: (value: boolean) => void,
-  setIsIncoming: (value: boolean) => void,
-  setJustEnded: (value: boolean) => void,
-  setSupervisorName: (value: string | null) => void,
-  currentIsTalkActive: boolean
-): void {
+function handleTalkSessionStart(config: ITalkSessionStartConfig): void {
+  const { data, filterPsoEmail, onTalkSessionStart, setters, currentIsTalkActive } = config;
+  const { setIsTalkActive, setIsIncoming, setJustEnded, setSupervisorName } = setters;
+  
   const messagePsoEmail = data.psoEmail?.toLowerCase();
   
   // Filter out messages not intended for this PSO
@@ -228,16 +217,18 @@ export function useTalkSessionNotifications(
         // Handle session start messages
         if (msg.type === 'talk_session_start') {
           const data = msg as { psoEmail?: string; supervisorEmail?: string; supervisorName?: string };
-          handleTalkSessionStart(
+          handleTalkSessionStart({
             data,
             filterPsoEmail,
             onTalkSessionStart,
-            setIsTalkActive,
-            setIsIncoming,
-            setJustEnded,
-            setSupervisorName,
-            isTalkActive
-          );
+            setters: {
+              setIsTalkActive,
+              setIsIncoming,
+              setJustEnded,
+              setSupervisorName,
+            },
+            currentIsTalkActive: isTalkActive,
+          });
         }
         
         // Handle session end messages
