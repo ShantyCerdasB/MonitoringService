@@ -33,6 +33,12 @@ export function formatCellValue(value: unknown): string {
       return '[object]';
     }
   }
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  if (typeof value === 'symbol') {
+    return value.toString();
+  }
   return String(value);
 }
 
@@ -58,6 +64,12 @@ export function cellValueToString(cell: unknown): string {
     } catch {
       return '[object]';
     }
+  }
+  if (typeof cell === 'number' || typeof cell === 'boolean' || typeof cell === 'bigint') {
+    return String(cell);
+  }
+  if (typeof cell === 'symbol') {
+    return cell.toString();
   }
   return String(cell);
 }

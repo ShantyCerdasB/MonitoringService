@@ -137,6 +137,7 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
       style={{ zIndex }}
       role="dialog"
       aria-modal="true"
+      tabIndex={0}
       onClick={(e) => {
         // Close on overlay click (optional - can be removed if not desired)
         if (e.target === e.currentTarget) {
@@ -153,32 +154,36 @@ export const BaseModal: React.FC<IBaseModalProps> = ({
         ref={modalRef}
         className={containerClass}
         style={classNameOverride ? {} : { left: pos.x, top: pos.y }}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           // Prevent keyboard events from propagating
           e.stopPropagation();
         }}
-        role="document"
       >
-        {customHeader ? (
-          draggable ? (
-            <button
-              type="button"
-              aria-label="Drag to move modal"
-              onMouseDown={handleMouseDown}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                }
-              }}
-              className="w-full cursor-move"
-            >
-              {customHeader}
-            </button>
-          ) : (
-            <div>{customHeader}</div>
-          )
-        ) : null}
+        {(() => {
+          if (!customHeader) {
+            return null;
+          }
+          if (draggable) {
+            return (
+              <button
+                type="button"
+                aria-label="Drag to move modal"
+                onMouseDown={handleMouseDown}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-full cursor-move"
+              >
+                {customHeader}
+              </button>
+            );
+          }
+          return <div>{customHeader}</div>;
+        })()}
         {children}
         {customFooter}
       </div>

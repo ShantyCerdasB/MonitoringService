@@ -92,7 +92,7 @@ export function createContactManagerPageConfig(): UserManagementConfig<ContactMa
       mainColumns: createCommonMainColumns<ContactManagerItem>([
         { key: 'status', header: 'Status' },
         { key: 'role', header: 'Role' },
-      ]) as Column<ContactManagerItem>[],
+      ]),
       candidateColumns: createCandidateColumns<CandidateUser>(),
     },
   };

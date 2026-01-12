@@ -113,6 +113,7 @@ export function SearchableDropdown<Value>({
       ref={menuRef}
       className={menuClassName}
       role="menu"
+      tabIndex={0}
       style={
         usePortal && portalPosition
           ? {

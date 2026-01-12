@@ -89,7 +89,7 @@ export function createSuperAdminPageConfig(): UserManagementConfig<SuperAdminIte
           header: 'Role',
           render: (row: SuperAdminItem) => row.role || 'Super Admin',
         },
-      ]) as Column<SuperAdminItem>[],
+      ]),
       candidateColumns: createCandidateColumns<UserByRole>(),
     },
     features: {

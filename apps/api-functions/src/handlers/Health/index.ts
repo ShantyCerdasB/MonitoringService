@@ -29,7 +29,7 @@ function parseQueryParams(query: Record<string, unknown>): {
     verboseStr = verboseValue;
   } else if (verboseValue == null) {
     verboseStr = '';
-  } else if (typeof verboseValue === 'object') {
+  } else if (typeof verboseValue === 'object' && verboseValue !== null) {
     verboseStr = JSON.stringify(verboseValue);
   } else {
     verboseStr = String(verboseValue);
@@ -41,7 +41,7 @@ function parseQueryParams(query: Record<string, unknown>): {
     dbStr = dbValue;
   } else if (dbValue == null) {
     dbStr = 'true';
-  } else if (typeof dbValue === 'object') {
+  } else if (typeof dbValue === 'object' && dbValue !== null) {
     dbStr = JSON.stringify(dbValue);
   } else {
     dbStr = String(dbValue);
@@ -53,7 +53,7 @@ function parseQueryParams(query: Record<string, unknown>): {
     usersStr = usersValue;
   } else if (usersValue == null) {
     usersStr = '';
-  } else if (typeof usersValue === 'object') {
+  } else if (typeof usersValue === 'object' && usersValue !== null) {
     usersStr = JSON.stringify(usersValue);
   } else {
     usersStr = String(usersValue);

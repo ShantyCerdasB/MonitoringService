@@ -205,7 +205,7 @@ export class ChatService implements IChatService {
    * @param value - Value to display
    * @returns TextBlock element or null if value is falsy
    */
-  private createTextBlock(label: string, value: unknown): any | null {
+  private createTextBlock(label: string, value: unknown): any {
     if (!value) {
       return null;
     }
@@ -310,8 +310,10 @@ export class ChatService implements IChatService {
         psoNameStr = message.psoName;
       } else if (message.psoName == null) {
         psoNameStr = 'Unknown';
+      } else if (typeof message.psoName === 'object' && message.psoName !== null) {
+        psoNameStr = JSON.stringify(message.psoName);
       } else {
-        psoNameStr = typeof message.psoName === 'object' ? JSON.stringify(message.psoName) : String(message.psoName);
+        psoNameStr = String(message.psoName);
       }
       cardBody.push(
         {

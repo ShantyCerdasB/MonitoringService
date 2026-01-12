@@ -173,8 +173,16 @@ import prisma from '../database/PrismaClientService';
  */
 export class ServiceContainer {
   private static instance: ServiceContainer;
-  public static initialized: boolean = false;
+  private static _initialized: boolean = false;
   private readonly services: Map<string, any> = new Map();
+
+  /**
+   * Gets whether the service container has been initialized
+   * @returns True if initialized, false otherwise
+   */
+  public static get initialized(): boolean {
+    return ServiceContainer._initialized;
+  }
 
   /**
    * Gets the singleton instance of ServiceContainer
@@ -875,7 +883,7 @@ export class ServiceContainer {
             return new DeleteErrorLogsApplicationService(deleteErrorLogsDomainService);
           });
     
-    ServiceContainer.initialized = true;
+    ServiceContainer._initialized = true;
   }
 }
 
