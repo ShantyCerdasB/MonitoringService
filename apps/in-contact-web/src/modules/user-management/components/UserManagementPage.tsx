@@ -210,10 +210,18 @@ export function UserManagementPage<T extends BaseUserManagementItem>({
     () => ({
       selectedKeys: selectedMainKeys,
       onToggleRow: (key: string, checked: boolean) => {
-        checked ? handleToggleRow(key) : handleUntoggleRow(key);
+        if (checked) {
+          handleToggleRow(key);
+        } else {
+          handleUntoggleRow(key);
+        }
       },
       onToggleAll: (checked: boolean, keys: string[]) => {
-        checked ? handleToggleAll(keys) : handleUntoggleAll(keys);
+        if (checked) {
+          handleToggleAll(keys);
+        } else {
+          handleUntoggleAll(keys);
+        }
       },
       getRowKey: (row: T, index: number) => getMainRowKey(row, index),
     }),

@@ -39,9 +39,12 @@ export function formatCellValue(value: unknown): string {
   if (typeof value === 'symbol') {
     return value.toString();
   }
-  // At this point, value is a primitive type (function, undefined already handled)
-  // String() is safe for remaining primitives
-  return String(value);
+  if (typeof value === 'function') {
+    return value.toString();
+  }
+  // At this point, all types have been handled
+  // Return empty string as safe fallback
+  return '';
 }
 
 /**
@@ -73,9 +76,12 @@ export function cellValueToString(cell: unknown): string {
   if (typeof cell === 'symbol') {
     return cell.toString();
   }
-  // At this point, cell is a primitive type (function, undefined already handled)
-  // String() is safe for remaining primitives
-  return String(cell);
+  if (typeof cell === 'function') {
+    return cell.toString();
+  }
+  // At this point, all types have been handled
+  // Return empty string as safe fallback
+  return '';
 }
 
 /**
